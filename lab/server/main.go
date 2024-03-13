@@ -22,7 +22,7 @@ func (s *textServer) Capitalize(ctx context.Context, req *pb.TextRequest) (*pb.T
 }
 
 func (s *textServer) Request(ctx context.Context, req *pb.UploadRequest) (*pb.UploadResponse, error) {
-	return &pb.UploadResponse{Number: 3000}, nil
+	return &pb.UploadResponse{Number: 1234}, nil
 }
 
 func main() {
