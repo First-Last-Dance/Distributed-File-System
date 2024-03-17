@@ -1,14 +1,11 @@
 package main
 
 import (
-	"context"
 	"fmt"
-	pb "lab/capitalize"
-	"log"
+	"io"
 	"net"
 	"os"
 	"strconv"
-	"strings"
 
 	"google.golang.org/grpc"
 )
@@ -22,7 +19,7 @@ func main() {
 		return
 	}
 	defer conn.Close()
-	c := pb.NewTextServiceClient(conn)
+	// c := pb.NewTextServiceClient(conn)
 
 	// Ask the user for their choice
 	fmt.Println("Press 1 to request upload, or press 2 to request download:")
@@ -41,30 +38,98 @@ func main() {
 	case 1:
 
 		// Call the UploadRequest RPC method
-		uploadResp, err := c.Request(context.Background(), &pb.UploadRequest{Title: "My Upload Title"})
-		if err != nil {
-			fmt.Println("Error calling UploadRequest:", err)
-			return
-		}
+		// uploadResp, err := c.Request(context.Background(), &pb.UploadRequest{Title: "My Upload Title"})
+		// if err != nil {
+		// 	fmt.Println("Error calling UploadRequest:", err)
+		// 	return
+		// }
 
 		// Connect to the received port number
-		portStr := fmt.Sprint(uploadResp.GetNumber())
-		makeUpload(portStr)
+		// portStr := fmt.Sprint(uploadResp.GetNumber())
+		portStr := "localhost:1234"
+		upload(portStr, "test.txt")
 
 	case 2:
 		// Call the DownloadRequest RPC method
-		fmt.Println("Download request is not implemented yet.")
+		portStr := "localhost:1234"
+		download(portStr, "test.txt")
 	default:
 		fmt.Println("Invalid choice. Exiting...")
 		return
 	}
 }
 
+// readFile reads the contents of a file at the specified path and returns it as a byte slice.
+func readFile(filePath string) ([]byte, error) {
+	// Read the file contents
+	content, err := os.ReadFile(filePath)
+	if err != nil {
+		return nil, err
+	}
+
+	return content, nil
+}
+
+func upload(address string, filePath string){
+    // Open the file for reading
+    file, err := os.Open(filePath)
+    if err != nil {
+        fmt.Println("Error opening file:", err)
+        return
+    }
+    defer file.Close()
+
+    // Connect to the server via TCP
+    conn, err := net.Dial("tcp", address)
+    if err != nil {
+        fmt.Println("Error connecting to server:", err)
+        return
+    }
+    defer conn.Close()
+
+    // Send the file's contents to the server
+    _, err = io.Copy(conn, file)
+    if err != nil {
+        fmt.Println("Error sending file:", err)
+        return
+    }
+
+    fmt.Println("File uploaded successfully.")
+
+}
+func download(address string, filePath string){
+        // Connect to the server via TCP
+    conn, err := net.Dial("tcp", address)
+    if err != nil {
+        fmt.Println("Error connecting to server:", err)
+        return
+    }
+    defer conn.Close()
+
+    // Create a new file to write the received data
+    outFile, err := os.Create(filePath)
+    if err != nil {
+        fmt.Println("Error creating file:", err)
+        return
+    }
+    defer outFile.Close()
+
+    // Copy the received data to the file
+    _, err = io.Copy(outFile, conn)
+    if err != nil {
+        fmt.Println("Error receiving file:", err)
+        return
+    }
+
+    fmt.Println("File received and saved as '" + filePath + "'.")
+
+}
+
 func makeUpload(port string) {
 	// Get the file path
 	fmt.Println("Provide the path of the file to upload")
-	var filePath string
-	fmt.Scanln(&filePath)
+	// var filePath string
+	// fmt.Scanln(&filePath)
 	var ip string = "localhost"
 	fmt.Println(ip + ":" + port)
 	conn, err := net.Dial("tcp", ip+":"+port)
@@ -72,31 +137,30 @@ func makeUpload(port string) {
 		fmt.Println("Error connecting to port:", err)
 		return
 	}
+	filePath := "test.txt" // Replace with the path to your MP4 file
+	fileContent, err := readFile(filePath)
+	if err != nil {
+		fmt.Println("Error reading file:", err)
+		return
+	}
+
+	fmt.Println("File content:")
+	fmt.Println(fileContent)
 
 	var currentByte int64 = 0
 	fmt.Println("send to client")
 
 	//////////////////////
 
-	text := "hello world"
-	_, err = conn.Write([]byte(strings.TrimSpace(text)))
+	// text := "hello world"
+	_, err = conn.Write([]byte(fileContent))
 
 	/////////////////////
 
 	fileBuffer := make([]byte, BUFFER_SIZE)
 
-	var error error
-
-	//file to read
-	file, error := os.Open(strings.TrimSpace(filePath)) // For read access.
-	if error != nil {
-		conn.Write([]byte("-1"))
-		log.Fatal(error)
-	}
-
 	fmt.Println(currentByte)
 	fmt.Println(fileBuffer)
-	fmt.Println(file)
 
 	defer conn.Close()
 
