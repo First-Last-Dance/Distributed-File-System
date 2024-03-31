@@ -16,13 +16,13 @@ import (
 
 func main() {
 	var wg sync.WaitGroup
-	wg.Add(1)
+	wg.Add(2)
 
 	// Start the server communication thread
-	// go func() {
-	// 	defer wg.Done()
-	// 	serverCommunication()
-	// }()
+	go func() {
+		defer wg.Done()
+		serverCommunication()
+	}()
 
 	// Start the client communication thread
 	go func() {
@@ -34,80 +34,7 @@ func main() {
 	wg.Wait()
 }
 
-func upload(address string, filePath string){
-    // Open the file for reading
-    file, err := os.Open(filePath)
-    if err != nil {
-        fmt.Println("Error opening file:", err)
-        return
-    }
-    defer file.Close()
-
-    listener, err := net.Listen("tcp", address)
-    if err != nil {
-        fmt.Println("Error starting server:", err)
-        return
-    }
-    defer listener.Close()
-
-    fmt.Println("Server is listening on port " + address + "...")
-
-    // Accept client connection
-    conn, err := listener.Accept()
-    if err != nil {
-        fmt.Println("Error accepting connection:", err)
-        return
-    }
-    defer conn.Close()
-
-    // Send the file's contents to the server
-    _, err = io.Copy(conn, file)
-    if err != nil {
-        fmt.Println("Error sending file:", err)
-        return
-    }
-
-    fmt.Println("File uploaded successfully.")
-
-}
-func download(address string, filePath string){
-    // Listen for incoming TCP connections on port 8080
-	fmt.Println(address)
-    listener, err := net.Listen("tcp", address)
-    if err != nil {
-        fmt.Println("Error starting server:", err)
-        return
-    }
-    defer listener.Close()
-
-    fmt.Println("Server is listening on port " + address + "...")
-
-    // Accept client connection
-    conn, err := listener.Accept()
-    if err != nil {
-        fmt.Println("Error accepting connection:", err)
-        return
-    }
-    defer conn.Close()
-
-    // Create a new file to write the received data
-    outFile, err := os.Create(filePath)
-    if err != nil {
-        fmt.Println("Error creating file:", err)
-        return
-    }
-    defer outFile.Close()
-
-    // Copy the received data to the file
-    _, err = io.Copy(outFile, conn)
-    if err != nil {
-        fmt.Println("Error receiving file:", err)
-        return
-    }
-
-    fmt.Println("File received and saved as '" + filePath + "'.")
-
-}
+//////////////////////////////////////////////////////////////////
 
 func serverCommunication() {
 	for {
@@ -136,66 +63,123 @@ func serverCommunication() {
 		fmt.Println("Received number from server:", uploadResp.GetNumber())
 
 		// Sleep for a while before retrying
-		time.Sleep(1 * time.Second)
+		time.Sleep(1000 * time.Second)
 	}
 }
 
+// ////////////////////////////////////////////////////////////////
 func clientCommunication() {
-	// Connect to the client (listening on port 1234)
-	// listener, err := net.Listen("tcp", "localhost:1234")
-	// if err != nil {
-	// 	fmt.Println("Failed to connect to client:", err)
-	// 	time.Sleep(5 * time.Second) // Retry after 5 seconds
-	// 	return
-	// }
-	// defer listener.Close()
-	// fmt.Println("Server started. Listening on port 1234...")
-	// for {
-
-	// 	conn, err := listener.Accept()
-	// 	if err != nil {
-	// 		fmt.Println("Error accepting connection:", err.Error())
-	// 		return
-	// 	}
-	// 	// Buffer to read incoming data
-	// 	buffer := make([]byte, 1024)
-
-	// 	// Read data from client
-	// 	n, err := conn.Read(buffer)
-	// 	if err != nil {
-	// 		fmt.Println("Error reading:", err.Error())
-	// 		return
-	// 	}
-
-	// 	// // Convert received data to string and capitalize it
-	// 	// receivedText := strings.TrimSpace(string(buffer[:n]))
-	// 	// capitalizedText := strings.ToUpper(receivedText)
-
-	// 	fmt.Println("capitalizedText:", buffer[:n])
-
-	// 	// Sleep for a while before retrying
-	// 	time.Sleep(5 * time.Second)
-	// }
-	fmt.Println("Press 1 to request download , or press 2 to request upload:")
-	var choiceStr string
-	fmt.Scanln(&choiceStr)
-
-	// Convert the choice to an integer
-	choice, err := strconv.Atoi(choiceStr)
+	address := "localhost:1234"
+	listener, err := net.Listen("tcp", address)
 	if err != nil {
-		fmt.Println("Invalid choice. Exiting...")
+		fmt.Println("Error starting server:", err)
 		return
 	}
-	switch choice {
-	case 1:
-		portStr := "localhost:1234"
-		download(portStr, "test.txt")
+	defer listener.Close()
 
-	case 2:
-		portStr := "localhost:1234"
-		upload(portStr, "test.txt")
-	default:
-		fmt.Println("Invalid choice. Exiting...")
+	fmt.Println("Node is listening on port " + address + "...")
+
+	for {
+		// Accept client connection
+		conn, err := listener.Accept()
+		if err != nil {
+			fmt.Println("Error accepting connection:", err)
+			continue
+		}
+
+		// Handle each client connection in a separate goroutine
+		go handleClient(conn)
+	}
+}
+
+func handleClient(conn net.Conn) {
+	defer conn.Close()
+
+	// Read the first byte to determine operation (UPLOAD or DOWNLOAD)
+	opBuffer := make([]byte, 10)
+	n, err := conn.Read(opBuffer)
+	if err != nil {
+		fmt.Println("Error reading operation:", err)
 		return
 	}
+
+	op := string(opBuffer[:n])
+
+	switch op {
+	case "UPLOAD":
+		download(conn)
+	case "DOWNLOAD":
+		upload(conn)
+	default:
+		fmt.Println("Unknown operation:", op)
+	}
+}
+
+func download(conn net.Conn) {
+	// Receive file size
+	sizeBuffer := make([]byte, 64)
+	n, err := conn.Read(sizeBuffer)
+	if err != nil {
+		fmt.Println("Error reading file size:", err)
+		return
+	}
+
+	sizeStr := string(sizeBuffer[:n])
+	size, err := strconv.ParseInt(sizeStr, 10, 64)
+	if err != nil {
+		fmt.Println("Error parsing file size:", err)
+		return
+	}
+
+	// Receive file content
+	fileContent := make([]byte, size)
+	_, err = io.ReadFull(conn, fileContent)
+	if err != nil {
+		fmt.Println("Error receiving file content:", err)
+		return
+	}
+
+	// Write received content to file
+	err = os.WriteFile("video.mkv", fileContent, 0644)
+	if err != nil {
+		fmt.Println("Error writing file:", err)
+		return
+	}
+
+	fmt.Println("File uploaded successfully.")
+}
+
+func upload(conn net.Conn) {
+	// Open the file for reading
+	file, err := os.Open("test.txt")
+	if err != nil {
+		fmt.Println("Error opening file:", err)
+		return
+	}
+	defer file.Close()
+
+	// Get file size
+	fileInfo, err := file.Stat()
+	if err != nil {
+		fmt.Println("Error getting file info:", err)
+		return
+	}
+	fileSize := fileInfo.Size()
+
+	// Send file size to client
+	fileSizeStr := strconv.FormatInt(fileSize, 10)
+	_, err = conn.Write([]byte(fileSizeStr))
+	if err != nil {
+		fmt.Println("Error sending file size:", err)
+		return
+	}
+
+	// Send file content to client
+	_, err = io.Copy(conn, file)
+	if err != nil {
+		fmt.Println("Error sending file content:", err)
+		return
+	}
+
+	fmt.Println("File sent successfully.")
 }

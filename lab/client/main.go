@@ -6,163 +6,115 @@ import (
 	"net"
 	"os"
 	"strconv"
-
-	"google.golang.org/grpc"
 )
 
-const BUFFER_SIZE = 1024
-
 func main() {
-	conn, err := grpc.Dial("localhost:7070", grpc.WithInsecure())
-	if err != nil {
-		fmt.Println("did not connect:", err)
-		return
-	}
-	defer conn.Close()
-	// c := pb.NewTextServiceClient(conn)
+	fmt.Println("Press 1 to upload a file or 2 to download a file:")
+	var choice int
+	fmt.Scanln(&choice)
 
-	// Ask the user for their choice
-	fmt.Println("Press 1 to request upload, or press 2 to request download:")
-	var choiceStr string
-	fmt.Scanln(&choiceStr)
-
-	// Convert the choice to an integer
-	choice, err := strconv.Atoi(choiceStr)
-	if err != nil {
-		fmt.Println("Invalid choice. Exiting...")
-		return
-	}
-
-	// Handle user's choice
 	switch choice {
 	case 1:
-
-		// Call the UploadRequest RPC method
-		// uploadResp, err := c.Request(context.Background(), &pb.UploadRequest{Title: "My Upload Title"})
-		// if err != nil {
-		// 	fmt.Println("Error calling UploadRequest:", err)
-		// 	return
-		// }
-
-		// Connect to the received port number
-		// portStr := fmt.Sprint(uploadResp.GetNumber())
-		portStr := "localhost:1234"
-		upload(portStr, "test.txt")
-
+		fmt.Println("Enter file name:")
+		var fileName string
+		fmt.Scanln(&fileName)
+		upload("localhost:1234", fileName)
 	case 2:
-		// Call the DownloadRequest RPC method
-		portStr := "localhost:1234"
-		download(portStr, "test.txt")
+		download("localhost:1234", "downloaded_file.txt")
 	default:
-		fmt.Println("Invalid choice. Exiting...")
+		fmt.Println("Invalid choice")
+	}
+}
+
+func upload(address, filePath string) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		fmt.Println("Error opening file:", err)
 		return
 	}
-}
+	defer file.Close()
 
-// readFile reads the contents of a file at the specified path and returns it as a byte slice.
-func readFile(filePath string) ([]byte, error) {
-	// Read the file contents
-	content, err := os.ReadFile(filePath)
+	conn, err := net.Dial("tcp", address)
 	if err != nil {
-		return nil, err
-	}
-
-	return content, nil
-}
-
-func upload(address string, filePath string){
-    // Open the file for reading
-    file, err := os.Open(filePath)
-    if err != nil {
-        fmt.Println("Error opening file:", err)
-        return
-    }
-    defer file.Close()
-
-    // Connect to the server via TCP
-    conn, err := net.Dial("tcp", address)
-    if err != nil {
-        fmt.Println("Error connecting to server:", err)
-        return
-    }
-    defer conn.Close()
-
-    // Send the file's contents to the server
-    _, err = io.Copy(conn, file)
-    if err != nil {
-        fmt.Println("Error sending file:", err)
-        return
-    }
-
-    fmt.Println("File uploaded successfully.")
-
-}
-func download(address string, filePath string){
-        // Connect to the server via TCP
-    conn, err := net.Dial("tcp", address)
-    if err != nil {
-        fmt.Println("Error connecting to server:", err)
-        return
-    }
-    defer conn.Close()
-
-    // Create a new file to write the received data
-    outFile, err := os.Create(filePath)
-    if err != nil {
-        fmt.Println("Error creating file:", err)
-        return
-    }
-    defer outFile.Close()
-
-    // Copy the received data to the file
-    _, err = io.Copy(outFile, conn)
-    if err != nil {
-        fmt.Println("Error receiving file:", err)
-        return
-    }
-
-    fmt.Println("File received and saved as '" + filePath + "'.")
-
-}
-
-func makeUpload(port string) {
-	// Get the file path
-	fmt.Println("Provide the path of the file to upload")
-	// var filePath string
-	// fmt.Scanln(&filePath)
-	var ip string = "localhost"
-	fmt.Println(ip + ":" + port)
-	conn, err := net.Dial("tcp", ip+":"+port)
-	if err != nil {
-		fmt.Println("Error connecting to port:", err)
+		fmt.Println("Error connecting to server:", err)
 		return
 	}
-	filePath := "test.txt" // Replace with the path to your MP4 file
-	fileContent, err := readFile(filePath)
-	if err != nil {
-		fmt.Println("Error reading file:", err)
-		return
-	}
-
-	fmt.Println("File content:")
-	fmt.Println(fileContent)
-
-	var currentByte int64 = 0
-	fmt.Println("send to client")
-
-	//////////////////////
-
-	// text := "hello world"
-	_, err = conn.Write([]byte(fileContent))
-
-	/////////////////////
-
-	fileBuffer := make([]byte, BUFFER_SIZE)
-
-	fmt.Println(currentByte)
-	fmt.Println(fileBuffer)
-
 	defer conn.Close()
 
-	fmt.Println("Connected to port:", port)
+	// Send operation (UPLOAD)
+	_, err = conn.Write([]byte("UPLOAD"))
+	if err != nil {
+		fmt.Println("Error sending operation:", err)
+		return
+	}
+
+	// Send file size
+	fileInfo, err := file.Stat()
+	if err != nil {
+		fmt.Println("Error getting file info:", err)
+		return
+	}
+	fileSize := fileInfo.Size()
+	fileSizeStr := strconv.FormatInt(fileSize, 10)
+	_, err = conn.Write([]byte(fileSizeStr))
+	if err != nil {
+		fmt.Println("Error sending file size:", err)
+		return
+	}
+
+	// Send file content
+	_, err = io.Copy(conn, file)
+	if err != nil {
+		fmt.Println("Error sending file content:", err)
+		return
+	}
+
+	fmt.Println("File uploaded successfully.")
+}
+
+func download(address, filePath string) {
+	conn, err := net.Dial("tcp", address)
+	if err != nil {
+		fmt.Println("Error connecting to server:", err)
+		return
+	}
+	defer conn.Close()
+
+	// Send operation (DOWNLOAD)
+	_, err = conn.Write([]byte("DOWNLOAD"))
+	if err != nil {
+		fmt.Println("Error sending operation:", err)
+		return
+	}
+
+	// Receive file size
+	sizeBuffer := make([]byte, 64)
+	n, err := conn.Read(sizeBuffer)
+	if err != nil {
+		fmt.Println("Error reading file size:", err)
+		return
+	}
+	sizeStr := string(sizeBuffer[:n])
+	size, err := strconv.ParseInt(sizeStr, 10, 64)
+	if err != nil {
+		fmt.Println("Error parsing file size:", err)
+		return
+	}
+
+	// Receive file content
+	fileContent := make([]byte, size)
+	_, err = io.ReadFull(conn, fileContent)
+	if err != nil {
+		fmt.Println("Error receiving file content:", err)
+		return
+	}
+
+	// Write received content to file
+	err = os.WriteFile(filePath, fileContent, 0644)
+	if err != nil {
+		fmt.Println("Error writing file:", err)
+		return
+	}
+
+	fmt.Println("File downloaded successfully.")
 }
