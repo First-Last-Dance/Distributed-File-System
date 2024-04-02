@@ -6,7 +6,7 @@ import (
 	"net"
 	"strings"
 
-	pb "lab/capitalize"
+	pb "lab_1/capitalize"
 
 	"google.golang.org/grpc"
 )

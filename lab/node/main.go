@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
-	pb "lab/capitalize"
+	pb "lab_1/capitalize"
 	"net"
 	"os"
 	"strconv"
@@ -34,78 +34,78 @@ func main() {
 	wg.Wait()
 }
 
-func upload(address string, filePath string){
-    // Open the file for reading
-    file, err := os.Open(filePath)
-    if err != nil {
-        fmt.Println("Error opening file:", err)
-        return
-    }
-    defer file.Close()
+func upload(address string, filePath string) {
+	// Open the file for reading
+	file, err := os.Open(filePath)
+	if err != nil {
+		fmt.Println("Error opening file:", err)
+		return
+	}
+	defer file.Close()
 
-    listener, err := net.Listen("tcp", address)
-    if err != nil {
-        fmt.Println("Error starting server:", err)
-        return
-    }
-    defer listener.Close()
+	listener, err := net.Listen("tcp", address)
+	if err != nil {
+		fmt.Println("Error starting server:", err)
+		return
+	}
+	defer listener.Close()
 
-    fmt.Println("Server is listening on port " + address + "...")
+	fmt.Println("Server is listening on port " + address + "...")
 
-    // Accept client connection
-    conn, err := listener.Accept()
-    if err != nil {
-        fmt.Println("Error accepting connection:", err)
-        return
-    }
-    defer conn.Close()
+	// Accept client connection
+	conn, err := listener.Accept()
+	if err != nil {
+		fmt.Println("Error accepting connection:", err)
+		return
+	}
+	defer conn.Close()
 
-    // Send the file's contents to the server
-    _, err = io.Copy(conn, file)
-    if err != nil {
-        fmt.Println("Error sending file:", err)
-        return
-    }
+	// Send the file's contents to the server
+	_, err = io.Copy(conn, file)
+	if err != nil {
+		fmt.Println("Error sending file:", err)
+		return
+	}
 
-    fmt.Println("File uploaded successfully.")
+	fmt.Println("File uploaded successfully.")
 
 }
-func download(address string, filePath string){
-    // Listen for incoming TCP connections on port 8080
+func download(address string, filePath string) {
+	// Listen for incoming TCP connections on port 8080
 	fmt.Println(address)
-    listener, err := net.Listen("tcp", address)
-    if err != nil {
-        fmt.Println("Error starting server:", err)
-        return
-    }
-    defer listener.Close()
+	listener, err := net.Listen("tcp", address)
+	if err != nil {
+		fmt.Println("Error starting server:", err)
+		return
+	}
+	defer listener.Close()
 
-    fmt.Println("Server is listening on port " + address + "...")
+	fmt.Println("Server is listening on port " + address + "...")
 
-    // Accept client connection
-    conn, err := listener.Accept()
-    if err != nil {
-        fmt.Println("Error accepting connection:", err)
-        return
-    }
-    defer conn.Close()
+	// Accept client connection
+	conn, err := listener.Accept()
+	if err != nil {
+		fmt.Println("Error accepting connection:", err)
+		return
+	}
+	defer conn.Close()
 
-    // Create a new file to write the received data
-    outFile, err := os.Create(filePath)
-    if err != nil {
-        fmt.Println("Error creating file:", err)
-        return
-    }
-    defer outFile.Close()
+	// Create a new file to write the received data
+	outFile, err := os.Create(filePath)
+	if err != nil {
+		fmt.Println("Error creating file:", err)
+		return
+	}
+	defer outFile.Close()
 
-    // Copy the received data to the file
-    _, err = io.Copy(outFile, conn)
-    if err != nil {
-        fmt.Println("Error receiving file:", err)
-        return
-    }
+	// Copy the received data to the file
+	_, err = io.Copy(outFile, conn)
+	if err != nil {
+		fmt.Println("Error receiving file:", err)
+		return
+	}
 
-    fmt.Println("File received and saved as '" + filePath + "'.")
+	fmt.Println("File received and saved as '" + filePath + "'.")
 
 }
 

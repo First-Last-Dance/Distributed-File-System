@@ -1,0 +1,55 @@
+syntax = "proto3";
+
+option go_package = "lab/gRPC";
+
+package master;
+
+message DownloadRequest {
+    string fileName = 1;
+}
+
+message DownloadResponse {
+    repeated string nodes = 1;
+}
+
+message UploadRequest {
+    string empty = 1;
+}
+
+message UploadResponse {
+    string node = 1;
+}
+
+message DataKeeperSuccessRequest {
+    string fileName = 1;
+	string dataKeeperNode = 2;
+	string filePath = 3;
+}
+
+message DataKeeperSuccessResponse {
+    string empty = 1;
+}
+
+message DatakeeperConnectRequest{
+    string node = 1;
+}
+
+message DatakeeperConnectResponse{
+    string empty = 1;
+}
+
+service DownloadService {
+    rpc Download(DownloadRequest) returns (DownloadResponse);
+}
+
+service UploadService {
+    rpc Upload(UploadRequest) returns (UploadResponse);
+}
+
+service DataKeeperSuccessService {
+    rpc DataKeeperSuccess(DataKeeperSuccessRequest) returns (DataKeeperSuccessResponse);
+}
+
+service DateKeeperConntectService{
+    rpc DateKeeperConntect(DatakeeperConnectRequest) returns (DatakeeperConnectResponse);
+}
