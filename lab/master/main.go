@@ -75,9 +75,19 @@ func (s *server) DataKeeperConnect(ctx context.Context, request *pb.DataKeeperCo
 	clientIP := pr.Addr.(*net.TCPAddr).IP
 	clientPort := request.GetPort()
 	var node = clientIP.String() + ":" + clientPort
+	for _, row := range nodeTable {
+		if row.dataKeeperNode == node {
+			row.isAlive = true
+			fmt.Println("Node reconnected: ", node)
+			fmt.Println("Node Table:")
+			for _, row := range nodeTable {
+				fmt.Println(row)
+			}
+			return &pb.DataKeeperConnectResponse{}, nil
+		}
+	}
 	nodeTable = append(nodeTable, RowOfNode{node, true})
 	fmt.Println("Node connected: ", node)
-	// print table
 	fmt.Println("Node Table:")
 	for _, row := range nodeTable {
 		fmt.Println(row)
