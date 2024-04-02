@@ -6,8 +6,6 @@ import (
 	"math/rand"
 	"net"
 
-	"strconv"
-
 	"time"
 
 	"google.golang.org/grpc"
@@ -75,8 +73,8 @@ func (s *server) DataKeeperConnect(ctx context.Context, request *pb.DataKeeperCo
 	}
 	// Get the client's IP address and port
 	clientIP := pr.Addr.(*net.TCPAddr).IP
-	clientPort := pr.Addr.(*net.TCPAddr).Port
-	var node = clientIP.String() + ":" + strconv.Itoa(clientPort)
+	clientPort := request.GetPort()
+	var node = clientIP.String() + ":" + clientPort
 	nodeTable = append(nodeTable, RowOfNode{node, true})
 	fmt.Println("Node connected: ", node)
 	// print table
