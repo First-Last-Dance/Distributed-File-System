@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.3.0
 // - protoc             v5.26.0
-// source: lab/gRPC/master.proto
+// source: gRPC/master.proto
 
 package gRPC
 
@@ -105,7 +105,7 @@ var DownloadService_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "lab/gRPC/master.proto",
+	Metadata: "gRPC/master.proto",
 }
 
 const (
@@ -195,7 +195,7 @@ var UploadService_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "lab/gRPC/master.proto",
+	Metadata: "gRPC/master.proto",
 }
 
 const (
@@ -286,96 +286,96 @@ var DataKeeperSuccessService_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "lab/gRPC/master.proto",
+	Metadata: "gRPC/master.proto",
 }
 
 const (
-	DateKeeperConntectService_DateKeeperConntect_FullMethodName = "/master.DateKeeperConntectService/DateKeeperConntect"
+	DataKeeperConnectService_DataKeeperConnect_FullMethodName = "/master.DataKeeperConnectService/DataKeeperConnect"
 )
 
-// DateKeeperConntectServiceClient is the client API for DateKeeperConntectService service.
+// DataKeeperConnectServiceClient is the client API for DataKeeperConnectService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
-type DateKeeperConntectServiceClient interface {
-	DateKeeperConntect(ctx context.Context, in *DatakeeperConnectRequest, opts ...grpc.CallOption) (*DatakeeperConnectResponse, error)
+type DataKeeperConnectServiceClient interface {
+	DataKeeperConnect(ctx context.Context, in *DataKeeperConnectRequest, opts ...grpc.CallOption) (*DataKeeperConnectResponse, error)
 }
 
-type dateKeeperConntectServiceClient struct {
+type dataKeeperConnectServiceClient struct {
 	cc grpc.ClientConnInterface
 }
 
-func NewDateKeeperConntectServiceClient(cc grpc.ClientConnInterface) DateKeeperConntectServiceClient {
-	return &dateKeeperConntectServiceClient{cc}
+func NewDataKeeperConnectServiceClient(cc grpc.ClientConnInterface) DataKeeperConnectServiceClient {
+	return &dataKeeperConnectServiceClient{cc}
 }
 
-func (c *dateKeeperConntectServiceClient) DateKeeperConntect(ctx context.Context, in *DatakeeperConnectRequest, opts ...grpc.CallOption) (*DatakeeperConnectResponse, error) {
-	out := new(DatakeeperConnectResponse)
-	err := c.cc.Invoke(ctx, DateKeeperConntectService_DateKeeperConntect_FullMethodName, in, out, opts...)
+func (c *dataKeeperConnectServiceClient) DataKeeperConnect(ctx context.Context, in *DataKeeperConnectRequest, opts ...grpc.CallOption) (*DataKeeperConnectResponse, error) {
+	out := new(DataKeeperConnectResponse)
+	err := c.cc.Invoke(ctx, DataKeeperConnectService_DataKeeperConnect_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-// DateKeeperConntectServiceServer is the server API for DateKeeperConntectService service.
-// All implementations must embed UnimplementedDateKeeperConntectServiceServer
+// DataKeeperConnectServiceServer is the server API for DataKeeperConnectService service.
+// All implementations must embed UnimplementedDataKeeperConnectServiceServer
 // for forward compatibility
-type DateKeeperConntectServiceServer interface {
-	DateKeeperConntect(context.Context, *DatakeeperConnectRequest) (*DatakeeperConnectResponse, error)
-	mustEmbedUnimplementedDateKeeperConntectServiceServer()
+type DataKeeperConnectServiceServer interface {
+	DataKeeperConnect(context.Context, *DataKeeperConnectRequest) (*DataKeeperConnectResponse, error)
+	mustEmbedUnimplementedDataKeeperConnectServiceServer()
 }
 
-// UnimplementedDateKeeperConntectServiceServer must be embedded to have forward compatible implementations.
-type UnimplementedDateKeeperConntectServiceServer struct {
+// UnimplementedDataKeeperConnectServiceServer must be embedded to have forward compatible implementations.
+type UnimplementedDataKeeperConnectServiceServer struct {
 }
 
-func (UnimplementedDateKeeperConntectServiceServer) DateKeeperConntect(context.Context, *DatakeeperConnectRequest) (*DatakeeperConnectResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method DateKeeperConntect not implemented")
+func (UnimplementedDataKeeperConnectServiceServer) DataKeeperConnect(context.Context, *DataKeeperConnectRequest) (*DataKeeperConnectResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DataKeeperConnect not implemented")
 }
-func (UnimplementedDateKeeperConntectServiceServer) mustEmbedUnimplementedDateKeeperConntectServiceServer() {
+func (UnimplementedDataKeeperConnectServiceServer) mustEmbedUnimplementedDataKeeperConnectServiceServer() {
 }
 
-// UnsafeDateKeeperConntectServiceServer may be embedded to opt out of forward compatibility for this service.
-// Use of this interface is not recommended, as added methods to DateKeeperConntectServiceServer will
+// UnsafeDataKeeperConnectServiceServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to DataKeeperConnectServiceServer will
 // result in compilation errors.
-type UnsafeDateKeeperConntectServiceServer interface {
-	mustEmbedUnimplementedDateKeeperConntectServiceServer()
+type UnsafeDataKeeperConnectServiceServer interface {
+	mustEmbedUnimplementedDataKeeperConnectServiceServer()
 }
 
-func RegisterDateKeeperConntectServiceServer(s grpc.ServiceRegistrar, srv DateKeeperConntectServiceServer) {
-	s.RegisterService(&DateKeeperConntectService_ServiceDesc, srv)
+func RegisterDataKeeperConnectServiceServer(s grpc.ServiceRegistrar, srv DataKeeperConnectServiceServer) {
+	s.RegisterService(&DataKeeperConnectService_ServiceDesc, srv)
 }
 
-func _DateKeeperConntectService_DateKeeperConntect_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(DatakeeperConnectRequest)
+func _DataKeeperConnectService_DataKeeperConnect_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DataKeeperConnectRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(DateKeeperConntectServiceServer).DateKeeperConntect(ctx, in)
+		return srv.(DataKeeperConnectServiceServer).DataKeeperConnect(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: DateKeeperConntectService_DateKeeperConntect_FullMethodName,
+		FullMethod: DataKeeperConnectService_DataKeeperConnect_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(DateKeeperConntectServiceServer).DateKeeperConntect(ctx, req.(*DatakeeperConnectRequest))
+		return srv.(DataKeeperConnectServiceServer).DataKeeperConnect(ctx, req.(*DataKeeperConnectRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-// DateKeeperConntectService_ServiceDesc is the grpc.ServiceDesc for DateKeeperConntectService service.
+// DataKeeperConnectService_ServiceDesc is the grpc.ServiceDesc for DataKeeperConnectService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
-var DateKeeperConntectService_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "master.DateKeeperConntectService",
-	HandlerType: (*DateKeeperConntectServiceServer)(nil),
+var DataKeeperConnectService_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "master.DataKeeperConnectService",
+	HandlerType: (*DataKeeperConnectServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "DateKeeperConntect",
-			Handler:    _DateKeeperConntectService_DateKeeperConntect_Handler,
+			MethodName: "DataKeeperConnect",
+			Handler:    _DataKeeperConnectService_DataKeeperConnect_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "lab/gRPC/master.proto",
+	Metadata: "gRPC/master.proto",
 }

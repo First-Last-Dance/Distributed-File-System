@@ -6,11 +6,14 @@ import (
 	"math/rand"
 	"net"
 
+	"strconv"
+
 	"time"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/peer"
 
-	pb "master/client"
+	pb "lab_1/gRPC"
 )
 
 type RowOfFile struct {
@@ -35,7 +38,7 @@ type server struct {
 	pb.UnimplementedDownloadServiceServer
 	pb.UnimplementedUploadServiceServer
 	pb.DataKeeperSuccessServiceServer
-	pb.DateKeeperConntectServiceServer
+	pb.DataKeeperConnectServiceServer
 }
 
 // Implement your gRPC service methods
@@ -61,15 +64,27 @@ func (s *server) DataKeeperSuccess(ctx context.Context, request *pb.DataKeeperSu
 	return &pb.DataKeeperSuccessResponse{}, nil
 }
 
-func (s *server) DataKeeperConnect(ctx context.Context, request *pb.DatakeeperConnectRequest) (*pb.DatakeeperConnectResponse, error) {
-	var node = request.GetNode()
+func (s *server) DataKeeperConnect(ctx context.Context, request *pb.DataKeeperConnectRequest) (*pb.DataKeeperConnectResponse, error) {
+	// fmt.Println("DataKeeperConnect called")
+	// var node = "Node1"
+	// var node = request.GetNode()
+	pr, ok := peer.FromContext(ctx)
+	if !ok {
+		// Peer information not available
+		return nil, fmt.Errorf("failed to get peer information")
+	}
+	// Get the client's IP address and port
+	clientIP := pr.Addr.(*net.TCPAddr).IP
+	clientPort := pr.Addr.(*net.TCPAddr).Port
+	var node = clientIP.String() + ":" + strconv.Itoa(clientPort)
 	nodeTable = append(nodeTable, RowOfNode{node, true})
+	fmt.Println("Node connected: ", node)
 	// print table
 	fmt.Println("Node Table:")
 	for _, row := range nodeTable {
 		fmt.Println(row)
 	}
-	return &pb.DatakeeperConnectResponse{}, nil
+	return &pb.DataKeeperConnectResponse{}, nil
 }
 
 func getRandomNode() string {
@@ -151,15 +166,15 @@ func replicationAlgorithm() {
 
 func main() {
 
-	// fileTable = append(fileTable, RowOfFile{"file1", "node1", "/path/to/file1"})
-	// fileTable = append(fileTable, RowOfFile{"file1", "node2", "/path/to/file1"})
-	// fileTable = append(fileTable, RowOfFile{"file1", "node6", "/path/to/file1"})
-	// fileTable = append(fileTable, RowOfFile{"file2", "node2", "/path/to/file2"})
-	// fileTable = append(fileTable, RowOfFile{"file3", "node1", "/path/to/file3"})
+	fileTable = append(fileTable, RowOfFile{"file1", "node1", "/path/to/file1"})
+	fileTable = append(fileTable, RowOfFile{"file1", "node2", "/path/to/file1"})
+	fileTable = append(fileTable, RowOfFile{"file1", "node6", "/path/to/file1"})
+	fileTable = append(fileTable, RowOfFile{"file2", "node2", "/path/to/file2"})
+	fileTable = append(fileTable, RowOfFile{"file3", "node1", "/path/to/file3"})
 
-	// nodeTable = append(nodeTable, RowOfNode{"node1", true})
-	// nodeTable = append(nodeTable, RowOfNode{"node2", true})
-	// nodeTable = append(nodeTable, RowOfNode{"node6", true})
+	nodeTable = append(nodeTable, RowOfNode{"node1", true})
+	nodeTable = append(nodeTable, RowOfNode{"node2", true})
+	nodeTable = append(nodeTable, RowOfNode{"node6", true})
 
 	// go replicationAlgorithm()
 
@@ -172,7 +187,7 @@ func main() {
 	pb.RegisterDownloadServiceServer(s, &server{})
 	pb.RegisterUploadServiceServer(s, &server{})
 	pb.RegisterDataKeeperSuccessServiceServer(s, &server{})
-	pb.RegisterDateKeeperConntectServiceServer(s, &server{})
+	pb.RegisterDataKeeperConnectServiceServer(s, &server{})
 	fmt.Println("Server started")
 	if err := s.Serve(lis); err != nil {
 		fmt.Println("failed to serve:", err)

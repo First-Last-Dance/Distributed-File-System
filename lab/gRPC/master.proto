@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-option go_package = "lab/gRPC";
+option go_package = "./gRPC";
 
 package master;
 
@@ -30,12 +30,12 @@ message DataKeeperSuccessResponse {
     string empty = 1;
 }
 
-message DatakeeperConnectRequest{
-    string node = 1;
+message DataKeeperConnectRequest{
+    string empty_Request = 1;
 }
 
-message DatakeeperConnectResponse{
-    string empty = 1;
+message DataKeeperConnectResponse{
+    string empty_Response = 1;
 }
 
 service DownloadService {
@@ -50,6 +50,6 @@ service DataKeeperSuccessService {
     rpc DataKeeperSuccess(DataKeeperSuccessRequest) returns (DataKeeperSuccessResponse);
 }
 
-service DateKeeperConntectService{
-    rpc DateKeeperConntect(DatakeeperConnectRequest) returns (DatakeeperConnectResponse);
+service DataKeeperConnectService{
+    rpc DataKeeperConnect(DataKeeperConnectRequest) returns (DataKeeperConnectResponse);
 }

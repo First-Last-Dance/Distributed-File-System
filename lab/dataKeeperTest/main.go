@@ -49,6 +49,15 @@ func uploadSuccess(c pb.DataKeeperSuccessServiceClient) {
 	}
 }
 
+func connect(c pb.DataKeeperConnectServiceClient) {
+
+	_, err := c.DataKeeperConnect(context.Background(), &pb.DataKeeperConnectRequest{})
+	if err != nil {
+		fmt.Println("Error calling Capitalize:", err)
+		return
+	}
+}
+
 func main() {
 	conn, err := grpc.Dial("localhost:8080", grpc.WithInsecure())
 	if err != nil {
@@ -59,7 +68,10 @@ func main() {
 	// c_download := pb.NewDownloadServiceClient(conn)
 	// download(c_download)
 
-	c_upload := pb.NewDataKeeperSuccessServiceClient(conn)
-	uploadSuccess(c_upload)
+	// c_upload := pb.NewDataKeeperSuccessServiceClient(conn)
+	// uploadSuccess(c_upload)
+
+	c_connect := pb.NewDataKeeperConnectServiceClient(conn)
+	connect(c_connect)
 
 }
