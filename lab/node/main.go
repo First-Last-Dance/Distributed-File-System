@@ -55,6 +55,8 @@ func getAddress()(string){
 }
 
 func main() {
+
+	var masterAddress string = "localhost:8080"
 	var wg sync.WaitGroup
 	wg.Add(2)
 	var port string = getAddress()
@@ -62,13 +64,13 @@ func main() {
 	// Start the server communication thread
 	go func() {
 		defer wg.Done()
-		serverCommunication(port, ready)
+		serverCommunication(port, ready, masterAddress)
 	}()
 
 	// Start the client communication thread
 	go func() {
 		defer wg.Done()
-		clientCommunication(port, ready)
+		clientCommunication(port, ready, masterAddress)
 	}()
 
 	// Wait for both threads to finish
@@ -77,10 +79,10 @@ func main() {
 
 
 
-func serverCommunication(port string, ready chan bool) {
+func serverCommunication(port string, ready chan bool, masterAddress string) {
 	for {
 		// Connect to the gRPC server
-		conn, err := grpc.Dial("localhost:8080", grpc.WithInsecure())
+		conn, err := grpc.Dial(masterAddress, grpc.WithInsecure())
 		if err != nil {
 			fmt.Println("Failed to connect to gRPC server:", err)
 			time.Sleep(1 * time.Second)
@@ -118,7 +120,7 @@ func serverCommunication(port string, ready chan bool) {
 	}
 }
 
-func clientCommunication(port string, ready chan bool) {
+func clientCommunication(port string, ready chan bool, masterAddress string) {
 	listener, err := net.Listen("tcp", "localhost:"+port)
 	if err != nil {
 		ready <- false
@@ -139,11 +141,11 @@ func clientCommunication(port string, ready chan bool) {
 		}
 
 		// Handle each client connection in a separate goroutine
-		go handleClient(conn)
+		go handleClient(conn, port, masterAddress)
 	}
 }
 
-func handleClient(conn net.Conn) {
+func handleClient(conn net.Conn, port string, masterAddress string) {
 	defer conn.Close()
 
 	// Read the first byte to determine operation (UPLOAD or DOWNLOAD)
@@ -158,7 +160,7 @@ func handleClient(conn net.Conn) {
 
 	switch op {
 	case 0:
-		download(conn)
+		download(conn, port, masterAddress)
 	case 1:
 		upload(conn)
 	default:
@@ -166,7 +168,7 @@ func handleClient(conn net.Conn) {
 	}
 }
 
-func download(conn net.Conn) {
+func download(conn net.Conn, port string, masterAddress string) {
 	// Receive length of filename
 	fileNameLengthBytes := make([]byte, 10) // assuming filename length is at most 10 bytes
 	_, err := io.ReadFull(conn, fileNameLengthBytes)
@@ -214,18 +216,18 @@ func download(conn net.Conn) {
 		return
 	}
 
-	// connMaster, err := grpc.Dial("localhost:8080", grpc.WithInsecure())
-	// 	if err != nil {
-	// 		fmt.Println("Failed to connect to gRPC server:", err)
-	// 		time.Sleep(1 * time.Second)
-	// 		return
-	// 	}
-		// defer conn.Close()
+	connMaster, err := grpc.Dial(masterAddress, grpc.WithInsecure())
+		if err != nil {
+			fmt.Println("Failed to connect to gRPC server:", err)
+			time.Sleep(1 * time.Second)
+			return
+		}
+		defer connMaster.Close()
 
 		// Create a gRPC client
-		// clientMaster := pb.NewDataKeeperSuccessServiceClient(connMaster)
+		clientMaster := pb.NewDataKeeperSuccessServiceClient(connMaster)
 
-		// clientMaster.DataKeeperSuccess(context.Background(), &pb.DataKeeperSuccessRequest{FileName: true})
+		clientMaster.DataKeeperSuccess(context.Background(), &pb.DataKeeperSuccessRequest{FileName : fileName, DataKeeperNode: port, FilePath :"./" + fileName})
 
 	fmt.Println("File uploaded successfully.")
 
