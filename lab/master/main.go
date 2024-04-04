@@ -52,7 +52,8 @@ func (s *server) Upload(ctx context.Context, request *pb.UploadRequest) (*pb.Upl
 }
 
 func (s *server) DataKeeperSuccess(ctx context.Context, request *pb.DataKeeperSuccessRequest) (*pb.DataKeeperSuccessResponse, error) {
-	fileTable = append(fileTable, RowOfFile{request.GetFileName(), request.GetDataKeeperNode(), request.GetFilePath()})
+	IPAddress := getIPAddress(ctx)
+	fileTable = append(fileTable, RowOfFile{request.GetFileName(), IPAddress + ":" + request.GetDataKeeperNode(), request.GetFilePath()})
 	replicateFile(request.GetFileName())
 	// print fileTable
 	fmt.Println("File Table:")
@@ -62,19 +63,25 @@ func (s *server) DataKeeperSuccess(ctx context.Context, request *pb.DataKeeperSu
 	return &pb.DataKeeperSuccessResponse{}, nil
 }
 
+func getIPAddress(ctx context.Context) string {
+	pr, ok := peer.FromContext(ctx)
+	if !ok {
+		// Peer information not available
+		return ""
+	}
+	// Get the client's IP address and port
+	clientIP := pr.Addr.(*net.TCPAddr).IP
+	return clientIP.String()
+}
+
 func (s *server) DataKeeperConnect(ctx context.Context, request *pb.DataKeeperConnectRequest) (*pb.DataKeeperConnectResponse, error) {
 	// fmt.Println("DataKeeperConnect called")
 	// var node = "Node1"
 	// var node = request.GetNode()
-	pr, ok := peer.FromContext(ctx)
-	if !ok {
-		// Peer information not available
-		return nil, fmt.Errorf("failed to get peer information")
-	}
-	// Get the client's IP address and port
-	clientIP := pr.Addr.(*net.TCPAddr).IP
+
+	clientIP := getIPAddress(ctx)
 	clientPort := request.GetPort()
-	var node = clientIP.String() + ":" + clientPort
+	var node = clientIP + ":" + clientPort
 	for _, row := range nodeTable {
 		if row.dataKeeperNode == node {
 			row.isAlive = true
@@ -95,13 +102,18 @@ func (s *server) DataKeeperConnect(ctx context.Context, request *pb.DataKeeperCo
 	return &pb.DataKeeperConnectResponse{}, nil
 }
 
-func getRandomNode() string {
+func getAliveNodes() []RowOfNode {
 	var aliveNodes []RowOfNode
 	for _, node := range nodeTable {
 		if node.isAlive {
 			aliveNodes = append(aliveNodes, node)
 		}
 	}
+	return aliveNodes
+}
+
+func getRandomNode() string {
+	aliveNodes := getAliveNodes()
 	if len(aliveNodes) == 0 {
 		return ""
 	}
@@ -134,9 +146,12 @@ func contains(nodes []string, node string) bool {
 
 func replicateFile(fileName string) {
 	nodesContainsFile := getAllNodesContainingFile(fileName)
+
 	sourceNode := nodesContainsFile[0]
+	aliveNodes := getAliveNodes()
+	numOfAliveNodes := len(aliveNodes)
 	for {
-		if len(nodesContainsFile) >= 3 {
+		if len(nodesContainsFile) >= min(3, numOfAliveNodes) {
 			break
 		}
 		var destinationNode string
