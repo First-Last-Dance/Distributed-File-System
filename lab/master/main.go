@@ -164,15 +164,15 @@ func replicationAlgorithm() {
 
 func main() {
 
-	fileTable = append(fileTable, RowOfFile{"file1", "node1", "/path/to/file1"})
-	fileTable = append(fileTable, RowOfFile{"file1", "node2", "/path/to/file1"})
-	fileTable = append(fileTable, RowOfFile{"file1", "node6", "/path/to/file1"})
-	fileTable = append(fileTable, RowOfFile{"file2", "node2", "/path/to/file2"})
-	fileTable = append(fileTable, RowOfFile{"file3", "node1", "/path/to/file3"})
+	// fileTable = append(fileTable, RowOfFile{"file1", "node1", "/path/to/file1"})
+	// fileTable = append(fileTable, RowOfFile{"file1", "node2", "/path/to/file1"})
+	// fileTable = append(fileTable, RowOfFile{"file1", "node6", "/path/to/file1"})
+	// fileTable = append(fileTable, RowOfFile{"file2", "node2", "/path/to/file2"})
+	// fileTable = append(fileTable, RowOfFile{"file3", "node1", "/path/to/file3"})
 
-	nodeTable = append(nodeTable, RowOfNode{"node1", true})
-	nodeTable = append(nodeTable, RowOfNode{"node2", true})
-	nodeTable = append(nodeTable, RowOfNode{"node6", true})
+	// nodeTable = append(nodeTable, RowOfNode{"node1", true})
+	// nodeTable = append(nodeTable, RowOfNode{"node2", true})
+	// nodeTable = append(nodeTable, RowOfNode{"node6", true})
 
 	// go replicationAlgorithm()
 

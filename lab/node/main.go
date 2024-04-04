@@ -4,115 +4,83 @@ import (
 	"context"
 	"fmt"
 	"io"
-	pb "lab_1/capitalize"
+	pb "lab_1/gRPC"
 	"net"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
 	"google.golang.org/grpc"
 )
 
+//works for wifi only
+func getAddress()(string){
+	ifaces, err := net.Interfaces()
+    	if err != nil {
+        	fmt.Println(err)
+        	return ""
+    	}
+		var ip string = "" 
+    	for _, iface := range ifaces {
+        	if iface.Name == "Wi-Fi" {
+            	addrs, err := iface.Addrs()
+            	if err != nil {
+                	fmt.Println(err)
+                	return ""
+           	 	}
+
+            	for _, addr := range addrs {
+                	if ipnet, ok := addr.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
+                    	if ipnet.IP.To4() != nil {
+							ip = ipnet.IP.String()
+                        	fmt.Println("Current IP address : ", ip)
+                    	}
+                	}
+            	}
+        	}
+    	}
+		// Get a free port
+		listener, err := net.Listen("tcp", ":0")
+		if err != nil {
+			fmt.Println("Error while listening for a free port:", err)
+			return ""
+		}
+		var port int = listener.Addr().(*net.TCPAddr).Port
+		fmt.Println("Free port:", port)
+		listener.Close()
+
+	return strconv.Itoa(port)
+}
+
 func main() {
 	var wg sync.WaitGroup
-	wg.Add(1)
-
+	wg.Add(2)
+	var port string = getAddress()
+		var ready chan bool = make(chan bool)
 	// Start the server communication thread
-	// go func() {
-	// 	defer wg.Done()
-	// 	serverCommunication()
-	// }()
+	go func() {
+		defer wg.Done()
+		serverCommunication(port, ready)
+	}()
 
 	// Start the client communication thread
 	go func() {
 		defer wg.Done()
-		clientCommunication()
+		clientCommunication(port, ready)
 	}()
 
 	// Wait for both threads to finish
 	wg.Wait()
 }
 
-func upload(address string, filePath string) {
-	// Open the file for reading
-	file, err := os.Open(filePath)
-	if err != nil {
-		fmt.Println("Error opening file:", err)
-		return
-	}
-	defer file.Close()
 
-	listener, err := net.Listen("tcp", address)
-	if err != nil {
-		fmt.Println("Error starting server:", err)
-		return
-	}
-	defer listener.Close()
 
-	fmt.Println("Server is listening on port " + address + "...")
-
-	// Accept client connection
-	conn, err := listener.Accept()
-	if err != nil {
-		fmt.Println("Error accepting connection:", err)
-		return
-	}
-	defer conn.Close()
-
-	// Send the file's contents to the server
-	_, err = io.Copy(conn, file)
-	if err != nil {
-		fmt.Println("Error sending file:", err)
-		return
-	}
-
-	fmt.Println("File uploaded successfully.")
-
-}
-func download(address string, filePath string) {
-	// Listen for incoming TCP connections on port 8080
-	fmt.Println(address)
-	listener, err := net.Listen("tcp", address)
-	if err != nil {
-		fmt.Println("Error starting server:", err)
-		return
-	}
-	defer listener.Close()
-
-	fmt.Println("Server is listening on port " + address + "...")
-
-	// Accept client connection
-	conn, err := listener.Accept()
-	if err != nil {
-		fmt.Println("Error accepting connection:", err)
-		return
-	}
-	defer conn.Close()
-
-	// Create a new file to write the received data
-	outFile, err := os.Create(filePath)
-	if err != nil {
-		fmt.Println("Error creating file:", err)
-		return
-	}
-	defer outFile.Close()
-
-	// Copy the received data to the file
-	_, err = io.Copy(outFile, conn)
-	if err != nil {
-		fmt.Println("Error receiving file:", err)
-		return
-	}
-
-	fmt.Println("File received and saved as '" + filePath + "'.")
-
-}
-
-func serverCommunication() {
+func serverCommunication(port string, ready chan bool) {
 	for {
 		// Connect to the gRPC server
-		conn, err := grpc.Dial("localhost:7070", grpc.WithInsecure())
+		conn, err := grpc.Dial("localhost:8080", grpc.WithInsecure())
 		if err != nil {
 			fmt.Println("Failed to connect to gRPC server:", err)
 			time.Sleep(1 * time.Second)
@@ -121,81 +89,179 @@ func serverCommunication() {
 		// defer conn.Close()
 
 		// Create a gRPC client
-		client := pb.NewTextServiceClient(conn)
+		client := pb.NewDataKeeperConnectServiceClient(conn)
 
 		// Perform operations with the server
 		// Example: Make an UploadRequest
 		// TODO: Modify this to be awake
-		uploadResp, err := client.Request(context.Background(), &pb.UploadRequest{Title: "My Upload Title"})
-		if err != nil {
+		// Wait for a value from the ready channel
+		r, ok := <-ready
+		if !ok {
+			fmt.Println("Error: the ready channel was closed")
+			return
+		}
+		if(!r){ // If the server failed to start
+			fmt.Println("Error: the server failed to start")
+			return
+		}
+		_, err_1 := client.DataKeeperConnect(context.Background(), &pb.DataKeeperConnectRequest{Port: port})
+		if err_1 != nil {
 			fmt.Println("Error making UploadRequest:", err)
 			time.Sleep(1 * time.Second)
 			continue
 		}
 
-		fmt.Println("Received number from server:", uploadResp.GetNumber())
+		// fmt.Println("Received number from server:", uploadResp.GetNumber())
 
 		// Sleep for a while before retrying
-		time.Sleep(1 * time.Second)
+		time.Sleep(1000 * time.Second)
 	}
 }
 
-func clientCommunication() {
-	// Connect to the client (listening on port 1234)
-	// listener, err := net.Listen("tcp", "localhost:1234")
-	// if err != nil {
-	// 	fmt.Println("Failed to connect to client:", err)
-	// 	time.Sleep(5 * time.Second) // Retry after 5 seconds
-	// 	return
-	// }
-	// defer listener.Close()
-	// fmt.Println("Server started. Listening on port 1234...")
-	// for {
-
-	// 	conn, err := listener.Accept()
-	// 	if err != nil {
-	// 		fmt.Println("Error accepting connection:", err.Error())
-	// 		return
-	// 	}
-	// 	// Buffer to read incoming data
-	// 	buffer := make([]byte, 1024)
-
-	// 	// Read data from client
-	// 	n, err := conn.Read(buffer)
-	// 	if err != nil {
-	// 		fmt.Println("Error reading:", err.Error())
-	// 		return
-	// 	}
-
-	// 	// // Convert received data to string and capitalize it
-	// 	// receivedText := strings.TrimSpace(string(buffer[:n]))
-	// 	// capitalizedText := strings.ToUpper(receivedText)
-
-	// 	fmt.Println("capitalizedText:", buffer[:n])
-
-	// 	// Sleep for a while before retrying
-	// 	time.Sleep(5 * time.Second)
-	// }
-	fmt.Println("Press 1 to request download , or press 2 to request upload:")
-	var choiceStr string
-	fmt.Scanln(&choiceStr)
-
-	// Convert the choice to an integer
-	choice, err := strconv.Atoi(choiceStr)
+func clientCommunication(port string, ready chan bool) {
+	listener, err := net.Listen("tcp", "localhost:"+port)
 	if err != nil {
-		fmt.Println("Invalid choice. Exiting...")
+		ready <- false
+		fmt.Println("Error starting server:", err)
 		return
 	}
-	switch choice {
-	case 1:
-		portStr := "localhost:1234"
-		download(portStr, "test.txt")
+	ready <- true
+	defer listener.Close()
 
-	case 2:
-		portStr := "localhost:1234"
-		upload(portStr, "test.txt")
-	default:
-		fmt.Println("Invalid choice. Exiting...")
+	fmt.Println("Node is listening on port localhost:" + port + "...")
+
+	for {
+		// Accept client connection
+		conn, err := listener.Accept()
+		if err != nil {
+			fmt.Println("Error accepting connection:", err)
+			continue
+		}
+
+		// Handle each client connection in a separate goroutine
+		go handleClient(conn)
+	}
+}
+
+func handleClient(conn net.Conn) {
+	defer conn.Close()
+
+	// Read the first byte to determine operation (UPLOAD or DOWNLOAD)
+	opBuffer := make([]byte, 1)
+	_, err := conn.Read(opBuffer)
+	if err != nil {
+		fmt.Println("Error reading operation:", err)
 		return
 	}
+
+	op := opBuffer[0]
+
+	switch op {
+	case 0:
+		download(conn)
+	case 1:
+		upload(conn)
+	default:
+		fmt.Println("Unknown operation:", op)
+	}
+}
+
+func download(conn net.Conn) {
+	// Receive length of filename
+	fileNameLengthBytes := make([]byte, 10) // assuming filename length is at most 10 bytes
+	_, err := io.ReadFull(conn, fileNameLengthBytes)
+	if err != nil {
+		fmt.Println("Error receiving filename length:", err)
+		return
+	}
+	fileNameLengthStr := strings.TrimSpace(string(fileNameLengthBytes))
+	fileNameLength, err := strconv.Atoi(fileNameLengthStr)
+	if err != nil {
+		fmt.Println("Error converting filename length to integer:", err)
+		return
+	}	
+	// Receive filename
+	fileNameBytes := make([]byte, fileNameLength)
+	_, err = io.ReadFull(conn, fileNameBytes)
+	if err != nil {
+		fmt.Println("Error receiving filename:", err)
+		return
+	}
+	fileName := string(fileNameBytes)
+
+	// Receive file size
+	fileSizeBytes := make([]byte, 100) // assuming file size is at most 10 bytes
+	_, err = io.ReadFull(conn, fileSizeBytes)
+	if err != nil {
+		fmt.Println("Error receiving file size:", err)
+		return
+	}
+	fileSize, _ := strconv.Atoi(string(fileSizeBytes))
+
+	// Receive file content
+	fileContent := make([]byte, fileSize)
+	_, err = io.ReadFull(conn, fileContent)
+	if err != nil {
+		fmt.Println("Error receiving file content:", err)
+		return
+	}
+
+
+	// Write received content to file
+	err = os.WriteFile(fileName, fileContent, 0644)
+	if err != nil {
+		fmt.Println("Error writing file:", err)
+		return
+	}
+
+	// connMaster, err := grpc.Dial("localhost:8080", grpc.WithInsecure())
+	// 	if err != nil {
+	// 		fmt.Println("Failed to connect to gRPC server:", err)
+	// 		time.Sleep(1 * time.Second)
+	// 		return
+	// 	}
+		// defer conn.Close()
+
+		// Create a gRPC client
+		// clientMaster := pb.NewDataKeeperSuccessServiceClient(connMaster)
+
+		// clientMaster.DataKeeperSuccess(context.Background(), &pb.DataKeeperSuccessRequest{FileName: true})
+
+	fmt.Println("File uploaded successfully.")
+
+}
+
+func upload(conn net.Conn) {
+	// Open the file for reading
+	file, err := os.Open("test.txt")
+	if err != nil {
+		fmt.Println("Error opening file:", err)
+		return
+	}
+	defer file.Close()
+
+	// Get file size
+	fileInfo, err := file.Stat()
+	if err != nil {
+		fmt.Println("Error getting file info:", err)
+		return
+	}
+	fileSize := fileInfo.Size()
+
+	// Send file size to client
+	fileSizeStr := strconv.FormatInt(fileSize, 10)
+	_, err = conn.Write([]byte(fileSizeStr))
+	if err != nil {
+		fmt.Println("Error sending file size:", err)
+		return
+	}
+
+	// Send file content to client
+	_, err = io.Copy(conn, file)
+	if err != nil {
+		fmt.Println("Error sending file content:", err)
+		return
+	}
+
+	fmt.Println("File sent successfully.")
 }
