@@ -35,7 +35,7 @@ func main() {
 
 func upload(address, filePath string) {
 	// Connect to the gRPC server
-	connMaster, errMaster := grpc.Dial("localhost:8080", grpc.WithInsecure())
+	connMaster, errMaster := grpc.Dial("25.23.12.54:8080", grpc.WithInsecure())
 	if errMaster != nil {
 		fmt.Println("Failed to connect to gRPC server:", errMaster)
 		time.Sleep(1 * time.Second)
