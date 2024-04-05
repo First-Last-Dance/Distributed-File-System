@@ -48,6 +48,15 @@ message DataKeeperReplicateResponse{
     string empty_Response = 1;
 }
 
+message DataKeeperOpenConnectionRequest{
+    string empty = 1;
+}
+
+message DataKeeperOpenConnectionResponse{
+    string node = 1;
+}
+
+
 service DownloadService {
     rpc Download(DownloadRequest) returns (DownloadResponse);
 }
@@ -66,4 +75,8 @@ service DataKeeperConnectService{
 
 service DataKeeperReplicateService{
     rpc DataKeeperReplicate(DataKeeperReplicateRequest) returns (DataKeeperReplicateResponse);
+}
+
+service DataKeeperOpenConnectionService{
+    rpc DataKeeperOpenConnection(DataKeeperOpenConnectionRequest) returns (DataKeeperOpenConnectionResponse);
 }

@@ -15,32 +15,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-// works for wifi only
-func getAddress() string {
-	ifaces, err := net.Interfaces()
-	if err != nil {
-		fmt.Println(err)
-		return ""
-	}
-	var ip string = ""
-	for _, iface := range ifaces {
-		if iface.Name == "Wi-Fi" {
-			addrs, err := iface.Addrs()
-			if err != nil {
-				fmt.Println(err)
-				return ""
-			}
-
-			for _, addr := range addrs {
-				if ipnet, ok := addr.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
-					if ipnet.IP.To4() != nil {
-						ip = ipnet.IP.String()
-						fmt.Println("Current IP address : ", ip)
-					}
-				}
-			}
-		}
-	}
+func getPort() string {
 	// Get a free port
 	listener, err := net.Listen("tcp", ":0")
 	if err != nil {
@@ -54,30 +29,136 @@ func getAddress() string {
 	return strconv.Itoa(port)
 }
 
+
+type server struct {
+	pb.UnimplementedDataKeeperReplicateServiceServer
+}
+
+func (s *server) DataKeeperReplicate(ctx context.Context, request *pb.DataKeeperReplicateRequest) (*pb.DataKeeperReplicateResponse, error) {
+	var fileName = request.GetFileName()
+	var node = request.GetNode()
+	go replicateFile(fileName, node)
+	return &pb.DataKeeperReplicateResponse{Empty_Response: ""}, nil
+}
+
+func replicateFile(filePath string, node string) {
+	dataKeeperAddressStr := node
+	fmt.Println("Data keeper address:", dataKeeperAddressStr)
+
+	if strings.Count(dataKeeperAddressStr, ":") > 1 {
+    	dataKeeperAddressStr = "localhost:" + dataKeeperAddressStr[strings.LastIndex(dataKeeperAddressStr, ":") + 1:]
+		fmt.Println("The address contains more than one colon. assume localhost:port. all ipv6 are assumed to be localhost.")
+		fmt.Println("Data keeper address:", dataKeeperAddressStr) 
+	}
+
+	file, err := os.Open(filePath)
+	if err != nil {
+		fmt.Println("Error opening file:", err)
+		return
+	}
+	defer file.Close()
+
+	conn, err := net.Dial("tcp", dataKeeperAddressStr)
+	if err != nil {
+		fmt.Println("Error connecting to server:", err)
+		return
+	}
+	defer conn.Close()
+
+	// Send operation (UPLOAD) => 0
+	_, err = conn.Write([]byte{0})
+	if err != nil {
+		fmt.Println("Error sending operation:", err)
+		return
+	}
+
+
+	// Get file info
+	fileInfo, err := file.Stat()
+	if err != nil {
+		fmt.Println("Error getting file info:", err)
+		return
+	}
+	fileSize := fileInfo.Size()
+	fileSizeStr := strconv.FormatInt(fileSize, 10)
+	
+	// Get filename
+	fileName := fileInfo.Name()
+	fileNameBytes := []byte(fileName)
+
+	// Send length of filename
+	fileNameLength := len(fileNameBytes)
+	fileNameLengthStr := strconv.Itoa(fileNameLength)
+	fileNameLengthStr = fmt.Sprintf("%0100s", fileNameLengthStr)
+	_, err = conn.Write([]byte(fileNameLengthStr))
+	if err != nil {
+		fmt.Println("Error sending filename length:", err)
+		return
+	}
+
+	// Send filename
+	_, err = conn.Write(fileNameBytes)
+	if err != nil {
+		fmt.Println("Error sending filename:", err)
+		return
+	}
+
+	// Send file size
+	fileSizeStr = fmt.Sprintf("%0100s", fileSizeStr)
+	_, err = conn.Write([]byte(fileSizeStr))
+	if err != nil {
+		fmt.Println("Error sending file size:", err)
+		return
+	}
+
+	// Send file content
+	_, err = io.Copy(conn, file)
+	if err != nil {
+		fmt.Println("Error sending file content:", err)
+		return
+	}
+
+	fmt.Println("File uploaded successfully.")
+}
+
+
 func main() {
 
 	var masterAddress string = "25.23.12.54:8080"
 	var wg sync.WaitGroup
 	wg.Add(2)
-	var port string = getAddress()
-	var ready chan bool = make(chan bool)
+	var port string = getPort()
+
+	listener, err := net.Listen("tcp", "25.49.63.207:"+port)
+	if err != nil {
+		fmt.Println("Error starting server:", err)
+		return
+	}
+	defer listener.Close()
+	s := grpc.NewServer()
+	pb.RegisterDataKeeperReplicateServiceServer(s, &server{})
+
+	if err := s.Serve(listener); err != nil {
+		fmt.Println("failed to serve:", err)
+	}
+	fmt.Println("Node is listening on port 25.49.63.207:" + port + "...") 
 	// Start the server communication thread
 	go func() {
 		defer wg.Done()
-		serverCommunication(port, ready, masterAddress)
+		serverCommunication(port, masterAddress)
 	}()
 
 	// Start the client communication thread
 	go func() {
 		defer wg.Done()
-		clientCommunication(port, ready, masterAddress)
+		clientCommunication("localhost", port, masterAddress)
 	}()
 
 	// Wait for both threads to finish
 	wg.Wait()
 }
 
-func serverCommunication(port string, ready chan bool, masterAddress string) {
+func serverCommunication(port string, masterAddress string) {
 	var conn *grpc.ClientConn
 	defer conn.Close()
 	var client pb.DataKeeperConnectServiceClient
@@ -89,19 +170,8 @@ func serverCommunication(port string, ready chan bool, masterAddress string) {
 			time.Sleep(1 * time.Second)
 			continue
 		}
-
 		// Create a gRPC client
 		client = pb.NewDataKeeperConnectServiceClient(conn)
-		// Wait for a value from the ready channel
-		r, ok := <-ready
-		if !ok {
-			fmt.Println("Error: the ready channel was closed")
-			return
-		}
-		if !r { // If the server failed to start
-			fmt.Println("Error: the server failed to start")
-			return
-		}
 		_, err_1 := client.DataKeeperConnect(context.Background(), &pb.DataKeeperConnectRequest{Port: port})
 		if err_1 != nil {
 			fmt.Println("Error connecting to  master:", err_1)
@@ -120,24 +190,20 @@ func serverCommunication(port string, ready chan bool, masterAddress string) {
 			fmt.Println("Error reconnecting to master:", err_1)
 			continue
 		}else{
-			fmt.Println("Reconnected to master")
 			continue
 		}
 
 	}
 }
 
-func clientCommunication(port string, ready chan bool, masterAddress string) {
-	listener, err := net.Listen("tcp", "25.49.63.207:"+port)
+func clientCommunication(ip string, port string, masterAddress string) {
+	listener, err := net.Listen("tcp", ip+":"+port)
 	if err != nil {
-		ready <- false
 		fmt.Println("Error starting server:", err)
 		return
 	}
-	ready <- true
 	defer listener.Close()
-
-	fmt.Println("Node is listening on port 25.49.63.207:" + port + "...")
+	fmt.Println("Node is listening on port 25.49.63.207:" + port + "...") 
 
 	for {
 		// Accept client connection
@@ -233,7 +299,7 @@ func download(conn net.Conn, port string, masterAddress string) {
 	// Create a gRPC client
 	clientMaster := pb.NewDataKeeperSuccessServiceClient(connMaster)
 
-	clientMaster.DataKeeperSuccess(context.Background(), &pb.DataKeeperSuccessRequest{FileName: fileName, DataKeeperNode: port, FilePath: "./" + fileName})
+	clientMaster.DataKeeperSuccess(context.Background(), &pb.DataKeeperSuccessRequest{FileName: fileName, DataKeeperNode: port, FilePath: "./" + fileName, IsReplication: false})
 
 	fmt.Println("File uploaded successfully.")
 
