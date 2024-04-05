@@ -84,14 +84,15 @@ func (s *server) DataKeeperConnect(ctx context.Context, request *pb.DataKeeperCo
 	clientIP := getIPAddress(ctx)
 	clientPort := request.GetPort()
 	var node = clientIP + ":" + clientPort
-	for _, row := range nodeTable {
+	for i, row := range nodeTable {
 		if row.dataKeeperNode == node {
-			row.lastUpdate = time.Now()
-			fmt.Println("Node reconnected: ", node)
-			fmt.Println("Node Table:")
-			for _, row := range nodeTable {
-				fmt.Println(row)
-			}
+			nodeTable[i].lastUpdate = time.Now()
+			// row.lastUpdate = time.Now()
+			// fmt.Println("Node reconnected: ", node)
+			// fmt.Println("Node Table:")
+			// for _, row := range nodeTable {
+			// 	fmt.Println(row)
+			// }
 			return &pb.DataKeeperConnectResponse{}, nil
 		}
 	}
@@ -108,7 +109,8 @@ func getAliveNodes() []RowOfNode {
 	var aliveNodes []RowOfNode
 	currentTime := time.Now()
 	for _, node := range nodeTable {
-		if currentTime.Sub(node.lastUpdate).Seconds() <= 1 {
+		fmt.Println("Node Seconds : ", currentTime.Sub(node.lastUpdate).Seconds())
+		if currentTime.Sub(node.lastUpdate).Seconds() <= 1.5 {
 			aliveNodes = append(aliveNodes, node)
 		}
 	}
@@ -221,15 +223,13 @@ func main() {
 	// nodeTable = append(nodeTable, RowOfNode{"node2", true})
 	// nodeTable = append(nodeTable, RowOfNode{"node6", true})
 
-	// go replicationAlgorithm()
-
 	lis, err := net.Listen("tcp", "25.23.12.54:8080")
 	if err != nil {
 		fmt.Println("failed to listen:", err)
 		return
 	}
 	s := grpc.NewServer()
-	go replicationAlgorithm()
+	// go replicationAlgorithm()
 	pb.RegisterDownloadServiceServer(s, &server{})
 	pb.RegisterUploadServiceServer(s, &server{})
 	pb.RegisterDataKeeperSuccessServiceServer(s, &server{})
