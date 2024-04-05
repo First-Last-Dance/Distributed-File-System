@@ -22,7 +22,7 @@ type RowOfFile struct {
 
 type RowOfNode struct {
 	dataKeeperNode string
-	isAlive        bool
+	lastUpdate     time.Time
 }
 
 type FileTable []RowOfFile
@@ -84,7 +84,7 @@ func (s *server) DataKeeperConnect(ctx context.Context, request *pb.DataKeeperCo
 	var node = clientIP + ":" + clientPort
 	for _, row := range nodeTable {
 		if row.dataKeeperNode == node {
-			row.isAlive = true
+			row.lastUpdate = time.Now()
 			fmt.Println("Node reconnected: ", node)
 			fmt.Println("Node Table:")
 			for _, row := range nodeTable {
@@ -93,7 +93,7 @@ func (s *server) DataKeeperConnect(ctx context.Context, request *pb.DataKeeperCo
 			return &pb.DataKeeperConnectResponse{}, nil
 		}
 	}
-	nodeTable = append(nodeTable, RowOfNode{node, true})
+	nodeTable = append(nodeTable, RowOfNode{node, time.Now()})
 	fmt.Println("Node connected: ", node)
 	fmt.Println("Node Table:")
 	for _, row := range nodeTable {
@@ -104,8 +104,9 @@ func (s *server) DataKeeperConnect(ctx context.Context, request *pb.DataKeeperCo
 
 func getAliveNodes() []RowOfNode {
 	var aliveNodes []RowOfNode
+	currentTime := time.Now()
 	for _, node := range nodeTable {
-		if node.isAlive {
+		if currentTime.Sub(node.lastUpdate).Seconds() <= 1 {
 			aliveNodes = append(aliveNodes, node)
 		}
 	}
@@ -125,8 +126,9 @@ func getAllNodesContainingFile(fileName string) []string {
 	var nodes []string
 	for _, row := range fileTable {
 		if row.fileName == fileName {
+			currentTime := time.Now()
 			for _, node := range nodeTable {
-				if node.dataKeeperNode == row.dataKeeperNode && node.isAlive {
+				if node.dataKeeperNode == row.dataKeeperNode && currentTime.Sub(node.lastUpdate).Seconds() <= 1 {
 					nodes = append(nodes, node.dataKeeperNode)
 				}
 			}
@@ -201,12 +203,13 @@ func main() {
 
 	// go replicationAlgorithm()
 
-	lis, err := net.Listen("tcp", ":8080")
+	lis, err := net.Listen("tcp", "25.23.12.54:8080")
 	if err != nil {
 		fmt.Println("failed to listen:", err)
 		return
 	}
 	s := grpc.NewServer()
+	go replicationAlgorithm()
 	pb.RegisterDownloadServiceServer(s, &server{})
 	pb.RegisterUploadServiceServer(s, &server{})
 	pb.RegisterDataKeeperSuccessServiceServer(s, &server{})

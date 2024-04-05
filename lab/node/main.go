@@ -15,41 +15,41 @@ import (
 	"google.golang.org/grpc"
 )
 
-//works for wifi only
-func getAddress()(string){
+// works for wifi only
+func getAddress() string {
 	ifaces, err := net.Interfaces()
-    	if err != nil {
-        	fmt.Println(err)
-        	return ""
-    	}
-		var ip string = "" 
-    	for _, iface := range ifaces {
-        	if iface.Name == "Wi-Fi" {
-            	addrs, err := iface.Addrs()
-            	if err != nil {
-                	fmt.Println(err)
-                	return ""
-           	 	}
+	if err != nil {
+		fmt.Println(err)
+		return ""
+	}
+	var ip string = ""
+	for _, iface := range ifaces {
+		if iface.Name == "Wi-Fi" {
+			addrs, err := iface.Addrs()
+			if err != nil {
+				fmt.Println(err)
+				return ""
+			}
 
-            	for _, addr := range addrs {
-                	if ipnet, ok := addr.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
-                    	if ipnet.IP.To4() != nil {
-							ip = ipnet.IP.String()
-                        	fmt.Println("Current IP address : ", ip)
-                    	}
-                	}
-            	}
-        	}
-    	}
-		// Get a free port
-		listener, err := net.Listen("tcp", ":0")
-		if err != nil {
-			fmt.Println("Error while listening for a free port:", err)
-			return ""
+			for _, addr := range addrs {
+				if ipnet, ok := addr.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
+					if ipnet.IP.To4() != nil {
+						ip = ipnet.IP.String()
+						fmt.Println("Current IP address : ", ip)
+					}
+				}
+			}
 		}
-		var port int = listener.Addr().(*net.TCPAddr).Port
-		fmt.Println("Free port:", port)
-		listener.Close()
+	}
+	// Get a free port
+	listener, err := net.Listen("tcp", ":0")
+	if err != nil {
+		fmt.Println("Error while listening for a free port:", err)
+		return ""
+	}
+	var port int = listener.Addr().(*net.TCPAddr).Port
+	fmt.Println("Free port:", port)
+	listener.Close()
 
 	return strconv.Itoa(port)
 }
@@ -60,7 +60,7 @@ func main() {
 	var wg sync.WaitGroup
 	wg.Add(2)
 	var port string = getAddress()
-		var ready chan bool = make(chan bool)
+	var ready chan bool = make(chan bool)
 	// Start the server communication thread
 	go func() {
 		defer wg.Done()
@@ -76,8 +76,6 @@ func main() {
 	// Wait for both threads to finish
 	wg.Wait()
 }
-
-
 
 func serverCommunication(port string, ready chan bool, masterAddress string) {
 	for {
@@ -102,7 +100,7 @@ func serverCommunication(port string, ready chan bool, masterAddress string) {
 			fmt.Println("Error: the ready channel was closed")
 			return
 		}
-		if(!r){ // If the server failed to start
+		if !r { // If the server failed to start
 			fmt.Println("Error: the server failed to start")
 			return
 		}
@@ -121,7 +119,7 @@ func serverCommunication(port string, ready chan bool, masterAddress string) {
 }
 
 func clientCommunication(port string, ready chan bool, masterAddress string) {
-	listener, err := net.Listen("tcp", "25.49.63.207:"+port)
+	listener, err := net.Listen("tcp", "25.23.12.54:"+port)
 	if err != nil {
 		ready <- false
 		fmt.Println("Error starting server:", err)
@@ -181,7 +179,7 @@ func download(conn net.Conn, port string, masterAddress string) {
 	if err != nil {
 		fmt.Println("Error converting filename length to integer:", err)
 		return
-	}	
+	}
 	// Receive filename
 	fileNameBytes := make([]byte, fileNameLength)
 	_, err = io.ReadFull(conn, fileNameBytes)
@@ -208,7 +206,6 @@ func download(conn net.Conn, port string, masterAddress string) {
 		return
 	}
 
-
 	// Write received content to file
 	err = os.WriteFile(fileName, fileContent, 0644)
 	if err != nil {
@@ -217,17 +214,17 @@ func download(conn net.Conn, port string, masterAddress string) {
 	}
 
 	connMaster, err := grpc.Dial(masterAddress, grpc.WithInsecure())
-		if err != nil {
-			fmt.Println("Failed to connect to gRPC server:", err)
-			time.Sleep(1 * time.Second)
-			return
-		}
-		defer connMaster.Close()
+	if err != nil {
+		fmt.Println("Failed to connect to gRPC server:", err)
+		time.Sleep(1 * time.Second)
+		return
+	}
+	defer connMaster.Close()
 
-		// Create a gRPC client
-		clientMaster := pb.NewDataKeeperSuccessServiceClient(connMaster)
+	// Create a gRPC client
+	clientMaster := pb.NewDataKeeperSuccessServiceClient(connMaster)
 
-		clientMaster.DataKeeperSuccess(context.Background(), &pb.DataKeeperSuccessRequest{FileName : fileName, DataKeeperNode: port, FilePath :"./" + fileName})
+	clientMaster.DataKeeperSuccess(context.Background(), &pb.DataKeeperSuccessRequest{FileName: fileName, DataKeeperNode: port, FilePath: "./" + fileName})
 
 	fmt.Println("File uploaded successfully.")
 
