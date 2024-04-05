@@ -61,7 +61,7 @@ func getAddr(dataKeeperGRPCAddressStr string) string {
 		return ""
 	}
 	dataKeeperAddressStr := dataKeeperAddress.Node
-	fmt.Println("Data keeper address:", dataKeeperGRPCAddressStr)
+	fmt.Println("Data keeper address:", dataKeeperAddressStr)
 	if strings.Count(dataKeeperAddressStr, ":") > 1 {
     	dataKeeperAddressStr = "localhost:" + dataKeeperAddressStr[strings.LastIndex(dataKeeperAddressStr, ":") + 1:]
 		fmt.Println("The address contains more than one colon. assume localhost:port. all ipv6 are assumed to be localhost.")

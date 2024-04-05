@@ -9,11 +9,43 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"google.golang.org/grpc"
 )
+
+func getAddr(dataKeeperGRPCAddressStr string) string {
+	if strings.Count(dataKeeperGRPCAddressStr, ":") > 1 {
+    	dataKeeperGRPCAddressStr = "localhost:" + dataKeeperGRPCAddressStr[strings.LastIndex(dataKeeperGRPCAddressStr, ":") + 1:]
+		fmt.Println("The address contains more than one colon. assume localhost:port. all ipv6 are assumed to be localhost.")
+		fmt.Println("Data keeper gRPC address:", dataKeeperGRPCAddressStr) 
+	}
+	// Connect to the gRPC server
+	conn, err := grpc.Dial(dataKeeperGRPCAddressStr, grpc.WithInsecure())
+	if err != nil {
+		fmt.Println("Failed to connect to gRPC server:", err)
+		return ""
+	}
+	defer conn.Close()
+
+	// Create a gRPC client
+	client := pb.NewDataKeeperOpenConnectionServiceClient(conn)
+
+	
+	dataKeeperAddress, err_1 := client.DataKeeperOpenConnection(context.Background(), &pb.DataKeeperOpenConnectionRequest{Empty: ""})
+	if err_1 != nil {
+		fmt.Println("Error making UploadRequest:", err_1)
+		return ""
+	}
+	dataKeeperAddressStr := dataKeeperAddress.Node
+	fmt.Println("Data keeper address:", dataKeeperAddressStr)
+	if strings.Count(dataKeeperAddressStr, ":") > 1 {
+    	dataKeeperAddressStr = "localhost:" + dataKeeperAddressStr[strings.LastIndex(dataKeeperAddressStr, ":") + 1:]
+		fmt.Println("The address contains more than one colon. assume localhost:port. all ipv6 are assumed to be localhost.")
+		fmt.Println("Data keeper gRPC address:", dataKeeperAddressStr) 
+	}
+	return dataKeeperAddressStr
+}
 
 func getPort() string {
 	// Get a free port
@@ -44,12 +76,15 @@ func (s *server) DataKeeperReplicate(ctx context.Context, request *pb.DataKeeper
 
 func (s *server) DataKeeperOpenConnection(ctx context.Context, request *pb.DataKeeperOpenConnectionRequest) (*pb.DataKeeperOpenConnectionResponse, error) {
 	var port = getPort()
-	go clientCommunication(dataKeeperIP, port, masterAddress)
+	go clientCommunication(dataKeeperIP, port, gRPCPort, masterAddress)
 	return &pb.DataKeeperOpenConnectionResponse{Node: dataKeeperIP+":"+port}, nil
 }
 
 func replicateFile(filePath string, node string) {
-	dataKeeperAddressStr := node
+	dataKeeperGRPCAddressStr := node
+	fmt.Println("Data keeper GRPC address:", dataKeeperGRPCAddressStr)
+
+	dataKeeperAddressStr := getAddr(dataKeeperGRPCAddressStr)
 	fmt.Println("Data keeper address:", dataKeeperAddressStr)
 
 	if strings.Count(dataKeeperAddressStr, ":") > 1 {
@@ -130,14 +165,12 @@ func replicateFile(filePath string, node string) {
 
 var masterAddress string = "25.23.12.54:8080"
 var dataKeeperIP string = "25.49.63.207"
+var gRPCPort string
 
 func main() {
+	gRPCPort = getPort()
 
-	var wg sync.WaitGroup
-	wg.Add(1)
-	var port string = getPort()
-
-	listener, err := net.Listen("tcp", dataKeeperIP + ":" +port)
+	listener, err := net.Listen("tcp", dataKeeperIP + ":" +gRPCPort)
 	if err != nil {
 		fmt.Println("Error starting server:", err)
 		return
@@ -147,18 +180,15 @@ func main() {
 	pb.RegisterDataKeeperReplicateServiceServer(s, &server{})
 	pb.RegisterDataKeeperOpenConnectionServiceServer(s, &server{})
 
+
+	// Start the server communication thread
+	go serverCommunication(gRPCPort, masterAddress)
+	
+	fmt.Println("Node is listening on port " + dataKeeperIP +":" + gRPCPort + "...") 
 	if err := s.Serve(listener); err != nil {
 		fmt.Println("failed to serve:", err)
 	}
-	fmt.Println("Node is listening on port 25.49.63.207:" + port + "...") 
-	// Start the server communication thread
-	go func() {
-		defer wg.Done()
-		serverCommunication(port, masterAddress)
-	}()
 
-	// Wait for thread to finish
-	wg.Wait()
 }
 
 func serverCommunication(port string, masterAddress string) {
@@ -199,7 +229,7 @@ func serverCommunication(port string, masterAddress string) {
 	}
 }
 
-func clientCommunication(ip string, port string, masterAddress string) {
+func clientCommunication(ip string, port string, gRPCPort string, masterAddress string) {
 	listener, err := net.Listen("tcp", ip+":"+port)
 	if err != nil {
 		fmt.Println("Error starting server:", err)
@@ -214,7 +244,7 @@ func clientCommunication(ip string, port string, masterAddress string) {
 	}
 
 	// Handle each client connection in a separate goroutine
-	go handleClient(conn, port, masterAddress)
+	go handleClient(conn, gRPCPort, masterAddress)
 }
 
 func handleClient(conn net.Conn, port string, masterAddress string) {
