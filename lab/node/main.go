@@ -78,6 +78,9 @@ func main() {
 }
 
 func serverCommunication(port string, ready chan bool, masterAddress string) {
+	var conn *grpc.ClientConn
+	defer conn.Close()
+	var client pb.DataKeeperConnectServiceClient
 	for {
 		// Connect to the gRPC server
 		conn, err := grpc.Dial(masterAddress, grpc.WithInsecure())
@@ -86,14 +89,9 @@ func serverCommunication(port string, ready chan bool, masterAddress string) {
 			time.Sleep(1 * time.Second)
 			continue
 		}
-		// defer conn.Close()
 
 		// Create a gRPC client
-		client := pb.NewDataKeeperConnectServiceClient(conn)
-
-		// Perform operations with the server
-		// Example: Make an UploadRequest
-		// TODO: Modify this to be awake
+		client = pb.NewDataKeeperConnectServiceClient(conn)
 		// Wait for a value from the ready channel
 		r, ok := <-ready
 		if !ok {
@@ -106,20 +104,31 @@ func serverCommunication(port string, ready chan bool, masterAddress string) {
 		}
 		_, err_1 := client.DataKeeperConnect(context.Background(), &pb.DataKeeperConnectRequest{Port: port})
 		if err_1 != nil {
-			fmt.Println("Error making UploadRequest:", err)
-			time.Sleep(1 * time.Second)
+			fmt.Println("Error connecting to  master:", err_1)
+			time.Sleep(time.Second)
+			continue
+		}else{
+			fmt.Println("Connected to master")
+			break
+		}
+	}
+
+	for {
+		time.Sleep(time.Second)
+		_, err_1 := client.DataKeeperConnect(context.Background(), &pb.DataKeeperConnectRequest{Port: port})
+		if err_1 != nil {
+			fmt.Println("Error reconnecting to master:", err_1)
+			continue
+		}else{
+			fmt.Println("Reconnected to master")
 			continue
 		}
 
-		// fmt.Println("Received number from server:", uploadResp.GetNumber())
-
-		// Sleep for a while before retrying
-		time.Sleep(1000 * time.Second)
 	}
 }
 
 func clientCommunication(port string, ready chan bool, masterAddress string) {
-	listener, err := net.Listen("tcp", "25.23.12.54:"+port)
+	listener, err := net.Listen("tcp", "25.49.63.207:"+port)
 	if err != nil {
 		ready <- false
 		fmt.Println("Error starting server:", err)
@@ -128,7 +137,7 @@ func clientCommunication(port string, ready chan bool, masterAddress string) {
 	ready <- true
 	defer listener.Close()
 
-	fmt.Println("Node is listening on port localhost:" + port + "...")
+	fmt.Println("Node is listening on port 25.49.63.207:" + port + "...")
 
 	for {
 		// Accept client connection
@@ -168,7 +177,7 @@ func handleClient(conn net.Conn, port string, masterAddress string) {
 
 func download(conn net.Conn, port string, masterAddress string) {
 	// Receive length of filename
-	fileNameLengthBytes := make([]byte, 10) // assuming filename length is at most 10 bytes
+	fileNameLengthBytes := make([]byte, 100) // assuming filename length is at most 100 bytes
 	_, err := io.ReadFull(conn, fileNameLengthBytes)
 	if err != nil {
 		fmt.Println("Error receiving filename length:", err)
@@ -190,7 +199,7 @@ func download(conn net.Conn, port string, masterAddress string) {
 	fileName := string(fileNameBytes)
 
 	// Receive file size
-	fileSizeBytes := make([]byte, 100) // assuming file size is at most 10 bytes
+	fileSizeBytes := make([]byte, 100) // assuming file size is at most 100 bytes
 	_, err = io.ReadFull(conn, fileSizeBytes)
 	if err != nil {
 		fmt.Println("Error receiving file size:", err)
@@ -231,8 +240,29 @@ func download(conn net.Conn, port string, masterAddress string) {
 }
 
 func upload(conn net.Conn) {
+	// Receive length of filePath
+	filePathLengthBytes := make([]byte, 100) // assuming filePath length is at most 100 bytes
+	_, err := io.ReadFull(conn, filePathLengthBytes)
+	if err != nil {
+		fmt.Println("Error receiving filePath length:", err)
+		return
+	}
+	filePathLengthStr := strings.TrimSpace(string(filePathLengthBytes))
+	filePathLength, err := strconv.Atoi(filePathLengthStr)
+	if err != nil {
+		fmt.Println("Error converting filePath length to integer:", err)
+		return
+	}
+	// Receive filePath
+	filePathBytes := make([]byte, filePathLength)
+	_, err = io.ReadFull(conn, filePathBytes)
+	if err != nil {
+		fmt.Println("Error receiving filePath:", err)
+		return
+	}
+	filePath := string(filePathBytes)
 	// Open the file for reading
-	file, err := os.Open("test.txt")
+	file, err := os.Open(filePath)
 	if err != nil {
 		fmt.Println("Error opening file:", err)
 		return

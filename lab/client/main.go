@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	pb "lab_1/gRPC"
+	"math/rand"
 	"net"
 	"os"
 	"strconv"
@@ -19,23 +20,26 @@ func main() {
 	var choice int
 	fmt.Scanln(&choice)
 
-	var address string = "localhost:58096"
+	var masterAddress string = "25.23.12.54:8080"
 	switch choice {
 	case 1:
 		fmt.Println("Enter file name:")
 		var fileName string
 		fmt.Scanln(&fileName)
-		upload(address, fileName)
+		upload(masterAddress, fileName)
 	case 2:
-		download(address, "downloaded_file.txt")
+		fmt.Println("Enter file name:")
+		var fileName string
+		fmt.Scanln(&fileName)
+		download(masterAddress, fileName)
 	default:
 		fmt.Println("Invalid choice")
 	}
 }
 
-func upload(address, filePath string) {
+func upload(masterAddress, filePath string) {
 	// Connect to the gRPC server
-	connMaster, errMaster := grpc.Dial("25.23.12.54:8080", grpc.WithInsecure())
+	connMaster, errMaster := grpc.Dial(masterAddress, grpc.WithInsecure())
 	if errMaster != nil {
 		fmt.Println("Failed to connect to gRPC server:", errMaster)
 		time.Sleep(1 * time.Second)
@@ -101,7 +105,7 @@ func upload(address, filePath string) {
 	// Send length of filename
 	fileNameLength := len(fileNameBytes)
 	fileNameLengthStr := strconv.Itoa(fileNameLength)
-	fileNameLengthStr = fmt.Sprintf("%010s", fileNameLengthStr)
+	fileNameLengthStr = fmt.Sprintf("%0100s", fileNameLengthStr)
 	_, err = conn.Write([]byte(fileNameLengthStr))
 	if err != nil {
 		fmt.Println("Error sending filename length:", err)
@@ -133,8 +137,45 @@ func upload(address, filePath string) {
 	fmt.Println("File uploaded successfully.")
 }
 
-func download(address, filePath string) {
-	conn, err := net.Dial("tcp", address)
+func download(masterAddress, fileName string) {
+
+	// Connect to the gRPC server
+	connMaster, errMaster := grpc.Dial(masterAddress, grpc.WithInsecure())
+	if errMaster != nil {
+		fmt.Println("Failed to connect to gRPC server:", errMaster)
+		time.Sleep(1 * time.Second)
+		return
+	}
+	defer connMaster.Close()
+
+	// Create a gRPC client
+	client := pb.NewDownloadServiceClient(connMaster)
+
+	// Perform operations with the server
+	// Example: Make an UploadRequest
+	
+	dataKeeperData, err_1 := client.Download(context.Background(), &pb.DownloadRequest{FileName: fileName})
+	if err_1 != nil {
+		fmt.Println("Error making UploadRequest:", err_1)
+		return
+	}
+	dataKeeperAddressArr := dataKeeperData.Nodes
+
+	// Seed the random number generator
+	rand.Seed(time.Now().UnixNano())
+
+	// Choose a random dataKeeperAddress
+	randomIndex := rand.Intn(len(dataKeeperAddressArr))
+	dataKeeperAddressStr := dataKeeperAddressArr[randomIndex]
+	fmt.Println("Data keeper address:", dataKeeperAddressStr)
+
+	if strings.Count(dataKeeperAddressStr, ":") > 1 {
+    	dataKeeperAddressStr = "localhost:" + dataKeeperAddressStr[strings.LastIndex(dataKeeperAddressStr, ":") + 1:]
+		fmt.Println("The address contains more than one colon. assume localhost:port. all ipv6 are assumed to be localhost.")
+		fmt.Println("Data keeper address:", dataKeeperAddressStr) 
+	}
+
+	conn, err := net.Dial("tcp", dataKeeperAddressStr)
 	if err != nil {
 		fmt.Println("Error connecting to server:", err)
 		return
@@ -145,6 +186,25 @@ func download(address, filePath string) {
 	_, err = conn.Write([]byte{1})
 	if err != nil {
 		fmt.Println("Error sending operation:", err)
+		return
+	}
+
+	fileNameBytes := []byte(fileName)
+
+	// Send length of filename
+	fileNameLength := len(fileNameBytes)
+	fileNameLengthStr := strconv.Itoa(fileNameLength)
+	fileNameLengthStr = fmt.Sprintf("%0100s", fileNameLengthStr)
+	_, err = conn.Write([]byte(fileNameLengthStr))
+	if err != nil {
+		fmt.Println("Error sending filename length:", err)
+		return
+	}
+
+	// Send filename
+	_, err = conn.Write(fileNameBytes)
+	if err != nil {
+		fmt.Println("Error sending filename:", err)
 		return
 	}
 
@@ -171,7 +231,7 @@ func download(address, filePath string) {
 	}
 
 	// Write received content to file
-	err = os.WriteFile(filePath, fileContent, 0644)
+	err = os.WriteFile(fileName , fileContent, 0644)
 	if err != nil {
 		fmt.Println("Error writing file:", err)
 		return
