@@ -41,7 +41,7 @@ message DataKeeperConnectResponse{
 
 message DataKeeperReplicateRequest{
     string node = 1;
-    string path = 2;
+    string fileName = 2;
 }
 
 message DataKeeperReplicateResponse{

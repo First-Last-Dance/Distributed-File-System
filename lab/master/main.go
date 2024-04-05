@@ -55,7 +55,7 @@ func (s *server) DataKeeperSuccess(ctx context.Context, request *pb.DataKeeperSu
 	IPAddress := getIPAddress(ctx)
 	fileTable = append(fileTable, RowOfFile{request.GetFileName(), IPAddress + ":" + request.GetDataKeeperNode(), request.GetFilePath()})
 	if request.GetIsReplication() {
-		replicateFile(request.GetFileName(), request.GetFilePath())
+		replicateFile(request.GetFileName())
 	}
 	// print fileTable
 	fmt.Println("File Table:")
@@ -148,7 +148,7 @@ func contains(nodes []string, node string) bool {
 	return false
 }
 
-func replicateFileFromSourceToDestination(filePath string, sourceNode string, destinationNode string) {
+func replicateFileFromSourceToDestination(fileName string, sourceNode string, destinationNode string) {
 	conn, err := grpc.Dial(sourceNode, grpc.WithInsecure())
 	if err != nil {
 		fmt.Println("did not connect to ", sourceNode, " : ", err)
@@ -156,14 +156,14 @@ func replicateFileFromSourceToDestination(filePath string, sourceNode string, de
 	}
 	defer conn.Close()
 	connectToSource := pb.NewDataKeeperReplicateServiceClient(conn)
-	_, err = connectToSource.DataKeeperReplicate(context.Background(), &pb.DataKeeperReplicateRequest{Path: filePath, Node: destinationNode})
+	_, err = connectToSource.DataKeeperReplicate(context.Background(), &pb.DataKeeperReplicateRequest{FileName: fileName, Node: destinationNode})
 	if err != nil {
 		fmt.Println("Error calling DataKeeperReplicate:", err)
 		return
 	}
 }
 
-func replicateFile(fileName string, filePath string) {
+func replicateFile(fileName string) {
 	nodesContainsFile := getAllNodesContainingFile(fileName)
 
 	sourceNode := nodesContainsFile[0]
@@ -181,7 +181,7 @@ func replicateFile(fileName string, filePath string) {
 			}
 		}
 		fmt.Println("Replicating file", fileName, "from node : ", sourceNode, " to node : ", destinationNode)
-		replicateFileFromSourceToDestination(filePath, sourceNode, destinationNode)
+		replicateFileFromSourceToDestination(fileName, sourceNode, destinationNode)
 		nodesContainsFile = append(nodesContainsFile, destinationNode)
 	}
 }
@@ -191,16 +191,16 @@ func replicationAlgorithm() {
 		time.Sleep(10 * time.Second)
 		fmt.Println("Replicating files Algo Started")
 		distinctFiles := []string{}
-		filesPath := []string{}
+		// filesPath := []string{}
 		for _, file := range fileTable {
 			if !contains(distinctFiles, file.fileName) {
 				distinctFiles = append(distinctFiles, file.fileName)
-				filesPath = append(filesPath, file.filePath)
+				// filesPath = append(filesPath, file.filePath)
 			}
 		}
 		// replicate files
-		for i, file := range distinctFiles {
-			replicateFile(file, filesPath[i])
+		for _, file := range distinctFiles {
+			replicateFile(file)
 		}
 		// fmt.Println("File Table:")
 		// for _, row := range fileTable {
