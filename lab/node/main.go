@@ -56,7 +56,7 @@ func getAddress() string {
 
 func main() {
 
-	var masterAddress string = "localhost:8080"
+	var masterAddress string = "25.23.12.54:8080"
 	var wg sync.WaitGroup
 	wg.Add(2)
 	var port string = getAddress()
@@ -128,7 +128,7 @@ func serverCommunication(port string, ready chan bool, masterAddress string) {
 }
 
 func clientCommunication(port string, ready chan bool, masterAddress string) {
-	listener, err := net.Listen("tcp", "localhost:"+port)
+	listener, err := net.Listen("tcp", "25.49.63.207:"+port)
 	if err != nil {
 		ready <- false
 		fmt.Println("Error starting server:", err)
@@ -137,7 +137,7 @@ func clientCommunication(port string, ready chan bool, masterAddress string) {
 	ready <- true
 	defer listener.Close()
 
-	fmt.Println("Node is listening on port localhost:" + port + "...")
+	fmt.Println("Node is listening on port 25.49.63.207:" + port + "...")
 
 	for {
 		// Accept client connection

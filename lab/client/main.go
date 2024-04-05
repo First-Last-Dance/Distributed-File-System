@@ -20,7 +20,7 @@ func main() {
 	var choice int
 	fmt.Scanln(&choice)
 
-	var masterAddress string = "localhost:8080"
+	var masterAddress string = "25.23.12.54:8080"
 	switch choice {
 	case 1:
 		fmt.Println("Enter file name:")
@@ -28,6 +28,7 @@ func main() {
 		fmt.Scanln(&fileName)
 		upload(masterAddress, fileName)
 	case 2:
+		fmt.Println("Enter file name:")
 		var fileName string
 		fmt.Scanln(&fileName)
 		download(masterAddress, fileName)
@@ -173,13 +174,6 @@ func download(masterAddress, fileName string) {
 		fmt.Println("The address contains more than one colon. assume localhost:port. all ipv6 are assumed to be localhost.")
 		fmt.Println("Data keeper address:", dataKeeperAddressStr) 
 	}
-
-	file, err := os.Open(fileName)
-	if err != nil {
-		fmt.Println("Error opening file:", err)
-		return
-	}
-	defer file.Close()
 
 	conn, err := net.Dial("tcp", dataKeeperAddressStr)
 	if err != nil {
