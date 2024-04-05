@@ -37,6 +37,39 @@ func main() {
 	}
 }
 
+func getAddr(dataKeeperGRPCAddressStr string) string {
+	if strings.Count(dataKeeperGRPCAddressStr, ":") > 1 {
+    	dataKeeperGRPCAddressStr = "localhost:" + dataKeeperGRPCAddressStr[strings.LastIndex(dataKeeperGRPCAddressStr, ":") + 1:]
+		fmt.Println("The address contains more than one colon. assume localhost:port. all ipv6 are assumed to be localhost.")
+		fmt.Println("Data keeper gRPC address:", dataKeeperGRPCAddressStr) 
+	}
+	// Connect to the gRPC server
+	conn, err := grpc.Dial(dataKeeperGRPCAddressStr, grpc.WithInsecure())
+	if err != nil {
+		fmt.Println("Failed to connect to gRPC server:", err)
+		return ""
+	}
+	defer conn.Close()
+
+	// Create a gRPC client
+	client := pb.NewDataKeeperOpenConnectionServiceClient(conn)
+
+	
+	dataKeeperAddress, err_1 := client.DataKeeperOpenConnection(context.Background(), &pb.DataKeeperOpenConnectionRequest{Empty: ""})
+	if err_1 != nil {
+		fmt.Println("Error making UploadRequest:", err_1)
+		return ""
+	}
+	dataKeeperAddressStr := dataKeeperAddress.Node
+	fmt.Println("Data keeper address:", dataKeeperGRPCAddressStr)
+	if strings.Count(dataKeeperAddressStr, ":") > 1 {
+    	dataKeeperAddressStr = "localhost:" + dataKeeperAddressStr[strings.LastIndex(dataKeeperAddressStr, ":") + 1:]
+		fmt.Println("The address contains more than one colon. assume localhost:port. all ipv6 are assumed to be localhost.")
+		fmt.Println("Data keeper gRPC address:", dataKeeperAddressStr) 
+	}
+	return dataKeeperAddressStr
+}
+
 func upload(masterAddress, filePath string) {
 	// Connect to the gRPC server
 	connMaster, errMaster := grpc.Dial(masterAddress, grpc.WithInsecure())
@@ -58,14 +91,16 @@ func upload(masterAddress, filePath string) {
 		fmt.Println("Error making UploadRequest:", err_1)
 		return
 	}
-	dataKeeperAddressStr := dataKeeperAddress.Node
-	fmt.Println("Data keeper address:", dataKeeperAddressStr)
+	dataKeeperGRPCAddressStr := dataKeeperAddress.Node
+	fmt.Println("Data keeper GRPC address:", dataKeeperGRPCAddressStr)
 
-	if strings.Count(dataKeeperAddressStr, ":") > 1 {
-    	dataKeeperAddressStr = "localhost:" + dataKeeperAddressStr[strings.LastIndex(dataKeeperAddressStr, ":") + 1:]
-		fmt.Println("The address contains more than one colon. assume localhost:port. all ipv6 are assumed to be localhost.")
-		fmt.Println("Data keeper address:", dataKeeperAddressStr) 
+	dataKeeperAddressStr := getAddr(dataKeeperGRPCAddressStr)
+	conn, err := net.Dial("tcp", dataKeeperAddressStr)
+	if err != nil {
+		fmt.Println("Error connecting to server:", err)
+		return
 	}
+	defer conn.Close()
 
 	file, err := os.Open(filePath)
 	if err != nil {
@@ -74,12 +109,7 @@ func upload(masterAddress, filePath string) {
 	}
 	defer file.Close()
 
-	conn, err := net.Dial("tcp", dataKeeperAddressStr)
-	if err != nil {
-		fmt.Println("Error connecting to server:", err)
-		return
-	}
-	defer conn.Close()
+
 
 	// Send operation (UPLOAD) => 0
 	_, err = conn.Write([]byte{0})
@@ -166,8 +196,11 @@ func download(masterAddress, fileName string) {
 
 	// Choose a random dataKeeperAddress
 	randomIndex := rand.Intn(len(dataKeeperAddressArr))
-	dataKeeperAddressStr := dataKeeperAddressArr[randomIndex]
-	fmt.Println("Data keeper address:", dataKeeperAddressStr)
+	dataKeeperGRPCAddressStr := dataKeeperAddressArr[randomIndex]
+	fmt.Println("Data keeper address:", dataKeeperGRPCAddressStr)
+
+	dataKeeperAddressStr := getAddr(dataKeeperGRPCAddressStr)
+
 
 	if strings.Count(dataKeeperAddressStr, ":") > 1 {
     	dataKeeperAddressStr = "localhost:" + dataKeeperAddressStr[strings.LastIndex(dataKeeperAddressStr, ":") + 1:]
