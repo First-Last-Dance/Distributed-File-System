@@ -24,6 +24,7 @@ message DataKeeperSuccessRequest {
     string fileName = 1;
 	string dataKeeperNode = 2;
 	string filePath = 3;
+    bool isReplication = 4;
 }
 
 message DataKeeperSuccessResponse {
@@ -40,7 +41,7 @@ message DataKeeperConnectResponse{
 
 message DataKeeperReplicateRequest{
     string node = 1;
-    string path = 2;
+    string fileName = 2;
 }
 
 message DataKeeperReplicateResponse{

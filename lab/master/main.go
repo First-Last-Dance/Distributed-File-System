@@ -54,7 +54,9 @@ func (s *server) Upload(ctx context.Context, request *pb.UploadRequest) (*pb.Upl
 func (s *server) DataKeeperSuccess(ctx context.Context, request *pb.DataKeeperSuccessRequest) (*pb.DataKeeperSuccessResponse, error) {
 	IPAddress := getIPAddress(ctx)
 	fileTable = append(fileTable, RowOfFile{request.GetFileName(), IPAddress + ":" + request.GetDataKeeperNode(), request.GetFilePath()})
-	replicateFile(request.GetFileName())
+	if request.GetIsReplication() {
+		replicateFile(request.GetFileName())
+	}
 	// print fileTable
 	fmt.Println("File Table:")
 	for _, row := range fileTable {
@@ -146,6 +148,21 @@ func contains(nodes []string, node string) bool {
 	return false
 }
 
+func replicateFileFromSourceToDestination(fileName string, sourceNode string, destinationNode string) {
+	conn, err := grpc.Dial(sourceNode, grpc.WithInsecure())
+	if err != nil {
+		fmt.Println("did not connect to ", sourceNode, " : ", err)
+		return
+	}
+	defer conn.Close()
+	connectToSource := pb.NewDataKeeperReplicateServiceClient(conn)
+	_, err = connectToSource.DataKeeperReplicate(context.Background(), &pb.DataKeeperReplicateRequest{FileName: fileName, Node: destinationNode})
+	if err != nil {
+		fmt.Println("Error calling DataKeeperReplicate:", err)
+		return
+	}
+}
+
 func replicateFile(fileName string) {
 	nodesContainsFile := getAllNodesContainingFile(fileName)
 
@@ -164,6 +181,7 @@ func replicateFile(fileName string) {
 			}
 		}
 		fmt.Println("Replicating file", fileName, "from node : ", sourceNode, " to node : ", destinationNode)
+		replicateFileFromSourceToDestination(fileName, sourceNode, destinationNode)
 		nodesContainsFile = append(nodesContainsFile, destinationNode)
 	}
 }
@@ -173,9 +191,11 @@ func replicationAlgorithm() {
 		time.Sleep(10 * time.Second)
 		fmt.Println("Replicating files Algo Started")
 		distinctFiles := []string{}
+		// filesPath := []string{}
 		for _, file := range fileTable {
 			if !contains(distinctFiles, file.fileName) {
 				distinctFiles = append(distinctFiles, file.fileName)
+				// filesPath = append(filesPath, file.filePath)
 			}
 		}
 		// replicate files
