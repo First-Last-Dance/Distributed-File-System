@@ -54,7 +54,7 @@ func (s *server) Upload(ctx context.Context, request *pb.UploadRequest) (*pb.Upl
 func (s *server) DataKeeperSuccess(ctx context.Context, request *pb.DataKeeperSuccessRequest) (*pb.DataKeeperSuccessResponse, error) {
 	IPAddress := getIPAddress(ctx)
 	fileTable = append(fileTable, RowOfFile{request.GetFileName(), IPAddress + ":" + request.GetDataKeeperNode(), request.GetFilePath()})
-	if request.GetIsReplication() {
+	if !request.GetIsReplication() {
 		replicateFile(request.GetFileName())
 	}
 	// print fileTable
@@ -109,7 +109,7 @@ func getAliveNodes() []RowOfNode {
 	var aliveNodes []RowOfNode
 	currentTime := time.Now()
 	for _, node := range nodeTable {
-		fmt.Println("Node Seconds : ", currentTime.Sub(node.lastUpdate).Seconds())
+		// fmt.Println("Node Seconds : ", currentTime.Sub(node.lastUpdate).Seconds())
 		if currentTime.Sub(node.lastUpdate).Seconds() <= 1.5 {
 			aliveNodes = append(aliveNodes, node)
 		}
@@ -150,19 +150,16 @@ func contains(nodes []string, node string) bool {
 	return false
 }
 
-func replicateFileFromSourceToDestination(fileName string, sourceNode string, destinationNode string) {
+func replicateFileFromSourceToDestination(fileName string, sourceNode string, destinationNode string) error {
 	conn, err := grpc.Dial(sourceNode, grpc.WithInsecure())
 	if err != nil {
 		fmt.Println("did not connect to ", sourceNode, " : ", err)
-		return
+		return err
 	}
 	defer conn.Close()
 	connectToSource := pb.NewDataKeeperReplicateServiceClient(conn)
 	_, err = connectToSource.DataKeeperReplicate(context.Background(), &pb.DataKeeperReplicateRequest{FileName: fileName, Node: destinationNode})
-	if err != nil {
-		fmt.Println("Error calling DataKeeperReplicate:", err)
-		return
-	}
+	return err
 }
 
 func replicateFile(fileName string) {
@@ -170,9 +167,9 @@ func replicateFile(fileName string) {
 
 	sourceNode := nodesContainsFile[0]
 	aliveNodes := getAliveNodes()
-	numOfAliveNodes := len(aliveNodes)
+	// numOfAliveNodes := len(aliveNodes)
 	for {
-		if len(nodesContainsFile) >= min(3, numOfAliveNodes) {
+		if len(nodesContainsFile) >= min(3, len(aliveNodes)) {
 			break
 		}
 		var destinationNode string
@@ -183,8 +180,25 @@ func replicateFile(fileName string) {
 			}
 		}
 		fmt.Println("Replicating file", fileName, "from node : ", sourceNode, " to node : ", destinationNode)
-		replicateFileFromSourceToDestination(fileName, sourceNode, destinationNode)
-		nodesContainsFile = append(nodesContainsFile, destinationNode)
+		err := replicateFileFromSourceToDestination(fileName, sourceNode, destinationNode)
+		if err != nil {
+			fmt.Println("Error In replication : ", err)
+			for i, node := range aliveNodes {
+				if node.dataKeeperNode == destinationNode {
+					// remove node from alivenodes
+					aliveNodes = append(nodeTable[:i], nodeTable[i+1:]...)
+					break
+				}
+			}
+		}
+		if err == nil {
+			nodesContainsFile = append(nodesContainsFile, destinationNode)
+			fileTable = append(fileTable, RowOfFile{fileName, destinationNode, "./" + fileName})
+			fmt.Println("File Table:")
+			for _, row := range fileTable {
+				fmt.Println(row)
+			}
+		}
 	}
 }
 
