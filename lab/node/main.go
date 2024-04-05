@@ -32,6 +32,7 @@ func getPort() string {
 
 type server struct {
 	pb.UnimplementedDataKeeperReplicateServiceServer
+	pb.UnimplementedDataKeeperOpenConnectionServiceServer
 }
 
 func (s *server) DataKeeperReplicate(ctx context.Context, request *pb.DataKeeperReplicateRequest) (*pb.DataKeeperReplicateResponse, error) {
@@ -39,6 +40,13 @@ func (s *server) DataKeeperReplicate(ctx context.Context, request *pb.DataKeeper
 	var node = request.GetNode()
 	go replicateFile(fileName, node)
 	return &pb.DataKeeperReplicateResponse{Empty_Response: ""}, nil
+}
+
+func (s *server) DataKeeperOpenConnection(ctx context.Context, request *pb.DataKeeperOpenConnectionRequest) (*pb.DataKeeperOpenConnectionResponse, error) {
+	var port = request.GetPort()
+	var ip = "localhost"
+	go clientCommunication(ip, port, masterAddress)
+	return &pb.DataKeeperOpenConnectionResponse{node: ""}, nil
 }
 
 func replicateFile(filePath string, node string) {
@@ -121,12 +129,12 @@ func replicateFile(filePath string, node string) {
 	fmt.Println("File uploaded successfully.")
 }
 
+var masterAddress string = "25.23.12.54:8080"
 
 func main() {
 
-	var masterAddress string = "25.23.12.54:8080"
 	var wg sync.WaitGroup
-	wg.Add(2)
+	wg.Add(1)
 	var port string = getPort()
 
 	listener, err := net.Listen("tcp", "25.49.63.207:"+port)
@@ -148,13 +156,7 @@ func main() {
 		serverCommunication(port, masterAddress)
 	}()
 
-	// Start the client communication thread
-	go func() {
-		defer wg.Done()
-		clientCommunication("localhost", port, masterAddress)
-	}()
-
-	// Wait for both threads to finish
+	// Wait for thread to finish
 	wg.Wait()
 }
 
