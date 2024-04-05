@@ -43,10 +43,9 @@ func (s *server) DataKeeperReplicate(ctx context.Context, request *pb.DataKeeper
 }
 
 func (s *server) DataKeeperOpenConnection(ctx context.Context, request *pb.DataKeeperOpenConnectionRequest) (*pb.DataKeeperOpenConnectionResponse, error) {
-	var port = request.GetPort()
-	var ip = "localhost"
-	go clientCommunication(ip, port, masterAddress)
-	return &pb.DataKeeperOpenConnectionResponse{node: ""}, nil
+	var port = getPort()
+	go clientCommunication(dataKeeperIP, port, masterAddress)
+	return &pb.DataKeeperOpenConnectionResponse{Node: dataKeeperIP+":"+port}, nil
 }
 
 func replicateFile(filePath string, node string) {
@@ -130,6 +129,7 @@ func replicateFile(filePath string, node string) {
 }
 
 var masterAddress string = "25.23.12.54:8080"
+var dataKeeperIP string = "25.49.63.207"
 
 func main() {
 
@@ -137,7 +137,7 @@ func main() {
 	wg.Add(1)
 	var port string = getPort()
 
-	listener, err := net.Listen("tcp", "25.49.63.207:"+port)
+	listener, err := net.Listen("tcp", dataKeeperIP + ":" +port)
 	if err != nil {
 		fmt.Println("Error starting server:", err)
 		return
@@ -145,6 +145,7 @@ func main() {
 	defer listener.Close()
 	s := grpc.NewServer()
 	pb.RegisterDataKeeperReplicateServiceServer(s, &server{})
+	pb.RegisterDataKeeperOpenConnectionServiceServer(s, &server{})
 
 	if err := s.Serve(listener); err != nil {
 		fmt.Println("failed to serve:", err)
@@ -205,19 +206,15 @@ func clientCommunication(ip string, port string, masterAddress string) {
 		return
 	}
 	defer listener.Close()
-	fmt.Println("Node is listening on port 25.49.63.207:" + port + "...") 
-
-	for {
-		// Accept client connection
-		conn, err := listener.Accept()
-		if err != nil {
-			fmt.Println("Error accepting connection:", err)
-			continue
-		}
-
-		// Handle each client connection in a separate goroutine
-		go handleClient(conn, port, masterAddress)
+	fmt.Println("Node is listening on port " + dataKeeperIP + ":" + port + "...") 
+	// Accept client connection
+	conn, err := listener.Accept()
+	if err != nil {
+		fmt.Println("Error accepting connection:", err)
 	}
+
+	// Handle each client connection in a separate goroutine
+	go handleClient(conn, port, masterAddress)
 }
 
 func handleClient(conn net.Conn, port string, masterAddress string) {
