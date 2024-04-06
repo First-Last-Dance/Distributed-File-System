@@ -197,6 +197,10 @@ func upload(masterAddress, filePath string) {
 		fmt.Println("Error making UploadSuccessfully request:", err)
 		return
 	}
+
+	// Delay for 0.5 seconds
+	time.Sleep(500 * time.Millisecond)
+
 	if(!res.IsSuccess){
 		fmt.Println("File upload failed.")
 	}else{
