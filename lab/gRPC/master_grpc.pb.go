@@ -561,3 +561,94 @@ var DataKeeperOpenConnectionService_ServiceDesc = grpc.ServiceDesc{
 	Streams:  []grpc.StreamDesc{},
 	Metadata: "gRPC/master.proto",
 }
+
+const (
+	UploadSuccessfullyService_UploadSuccessfully_FullMethodName = "/master.UploadSuccessfullyService/UploadSuccessfully"
+)
+
+// UploadSuccessfullyServiceClient is the client API for UploadSuccessfullyService service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
+type UploadSuccessfullyServiceClient interface {
+	UploadSuccessfully(ctx context.Context, in *UploadSuccessfullyRequest, opts ...grpc.CallOption) (*UploadSuccessfullyResponse, error)
+}
+
+type uploadSuccessfullyServiceClient struct {
+	cc grpc.ClientConnInterface
+}
+
+func NewUploadSuccessfullyServiceClient(cc grpc.ClientConnInterface) UploadSuccessfullyServiceClient {
+	return &uploadSuccessfullyServiceClient{cc}
+}
+
+func (c *uploadSuccessfullyServiceClient) UploadSuccessfully(ctx context.Context, in *UploadSuccessfullyRequest, opts ...grpc.CallOption) (*UploadSuccessfullyResponse, error) {
+	out := new(UploadSuccessfullyResponse)
+	err := c.cc.Invoke(ctx, UploadSuccessfullyService_UploadSuccessfully_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// UploadSuccessfullyServiceServer is the server API for UploadSuccessfullyService service.
+// All implementations must embed UnimplementedUploadSuccessfullyServiceServer
+// for forward compatibility
+type UploadSuccessfullyServiceServer interface {
+	UploadSuccessfully(context.Context, *UploadSuccessfullyRequest) (*UploadSuccessfullyResponse, error)
+	mustEmbedUnimplementedUploadSuccessfullyServiceServer()
+}
+
+// UnimplementedUploadSuccessfullyServiceServer must be embedded to have forward compatible implementations.
+type UnimplementedUploadSuccessfullyServiceServer struct {
+}
+
+func (UnimplementedUploadSuccessfullyServiceServer) UploadSuccessfully(context.Context, *UploadSuccessfullyRequest) (*UploadSuccessfullyResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UploadSuccessfully not implemented")
+}
+func (UnimplementedUploadSuccessfullyServiceServer) mustEmbedUnimplementedUploadSuccessfullyServiceServer() {
+}
+
+// UnsafeUploadSuccessfullyServiceServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to UploadSuccessfullyServiceServer will
+// result in compilation errors.
+type UnsafeUploadSuccessfullyServiceServer interface {
+	mustEmbedUnimplementedUploadSuccessfullyServiceServer()
+}
+
+func RegisterUploadSuccessfullyServiceServer(s grpc.ServiceRegistrar, srv UploadSuccessfullyServiceServer) {
+	s.RegisterService(&UploadSuccessfullyService_ServiceDesc, srv)
+}
+
+func _UploadSuccessfullyService_UploadSuccessfully_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UploadSuccessfullyRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UploadSuccessfullyServiceServer).UploadSuccessfully(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: UploadSuccessfullyService_UploadSuccessfully_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UploadSuccessfullyServiceServer).UploadSuccessfully(ctx, req.(*UploadSuccessfullyRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+// UploadSuccessfullyService_ServiceDesc is the grpc.ServiceDesc for UploadSuccessfullyService service.
+// It's only intended for direct use with grpc.RegisterService,
+// and not to be introspected or modified (even as a copy)
+var UploadSuccessfullyService_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "master.UploadSuccessfullyService",
+	HandlerType: (*UploadSuccessfullyServiceServer)(nil),
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "UploadSuccessfully",
+			Handler:    _UploadSuccessfullyService_UploadSuccessfully_Handler,
+		},
+	},
+	Streams:  []grpc.StreamDesc{},
+	Metadata: "gRPC/master.proto",
+}

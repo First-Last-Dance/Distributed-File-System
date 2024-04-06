@@ -24,7 +24,6 @@ message DataKeeperSuccessRequest {
     string fileName = 1;
 	string dataKeeperNode = 2;
 	string filePath = 3;
-    bool isReplication = 4;
 }
 
 message DataKeeperSuccessResponse {
@@ -56,6 +55,14 @@ message DataKeeperOpenConnectionResponse{
     string node = 1;
 }
 
+message UploadSuccessfullyRequest{
+    string fileName = 1;
+}
+
+message UploadSuccessfullyResponse{
+    bool isSuccess = 1;
+}
+
 
 service DownloadService {
     rpc Download(DownloadRequest) returns (DownloadResponse);
@@ -79,4 +86,8 @@ service DataKeeperReplicateService{
 
 service DataKeeperOpenConnectionService{
     rpc DataKeeperOpenConnection(DataKeeperOpenConnectionRequest) returns (DataKeeperOpenConnectionResponse);
+}
+
+service UploadSuccessfullyService{
+    rpc UploadSuccessfully(UploadSuccessfullyRequest) returns (UploadSuccessfullyResponse);
 }

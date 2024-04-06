@@ -37,6 +37,7 @@ type server struct {
 	pb.UnimplementedUploadServiceServer
 	pb.DataKeeperSuccessServiceServer
 	pb.DataKeeperConnectServiceServer
+	pb.UploadSuccessfullyServiceServer
 }
 
 // Implement your gRPC service methods
@@ -51,12 +52,18 @@ func (s *server) Upload(ctx context.Context, request *pb.UploadRequest) (*pb.Upl
 	return &pb.UploadResponse{Node: node}, nil
 }
 
+func (s *server) UploadSuccessfully(ctx context.Context, request *pb.UploadSuccessfullyRequest) (*pb.UploadSuccessfullyResponse, error) {
+	nodes := getAllNodesContainingFile(request.GetFileName())
+	if len(nodes) == 0 {
+		return &pb.UploadSuccessfullyResponse{IsSuccess: false}, nil
+	}
+	return &pb.UploadSuccessfullyResponse{IsSuccess: true}, nil
+}
+
 func (s *server) DataKeeperSuccess(ctx context.Context, request *pb.DataKeeperSuccessRequest) (*pb.DataKeeperSuccessResponse, error) {
 	IPAddress := getIPAddress(ctx)
 	fileTable = append(fileTable, RowOfFile{request.GetFileName(), IPAddress + ":" + request.GetDataKeeperNode(), request.GetFilePath()})
-	if !request.GetIsReplication() {
-		replicateFile(request.GetFileName())
-	}
+	replicateFile(request.GetFileName())
 	// print fileTable
 	fmt.Println("File Table:")
 	for _, row := range fileTable {
@@ -77,22 +84,12 @@ func getIPAddress(ctx context.Context) string {
 }
 
 func (s *server) DataKeeperConnect(ctx context.Context, request *pb.DataKeeperConnectRequest) (*pb.DataKeeperConnectResponse, error) {
-	// fmt.Println("DataKeeperConnect called")
-	// var node = "Node1"
-	// var node = request.GetNode()
-
 	clientIP := getIPAddress(ctx)
 	clientPort := request.GetPort()
 	var node = clientIP + ":" + clientPort
 	for i, row := range nodeTable {
 		if row.dataKeeperNode == node {
 			nodeTable[i].lastUpdate = time.Now()
-			// row.lastUpdate = time.Now()
-			// fmt.Println("Node reconnected: ", node)
-			// fmt.Println("Node Table:")
-			// for _, row := range nodeTable {
-			// 	fmt.Println(row)
-			// }
 			return &pb.DataKeeperConnectResponse{}, nil
 		}
 	}
@@ -109,7 +106,6 @@ func getAliveNodes() []RowOfNode {
 	var aliveNodes []RowOfNode
 	currentTime := time.Now()
 	for _, node := range nodeTable {
-		// fmt.Println("Node Seconds : ", currentTime.Sub(node.lastUpdate).Seconds())
 		if currentTime.Sub(node.lastUpdate).Seconds() <= 1.5 {
 			aliveNodes = append(aliveNodes, node)
 		}
@@ -132,9 +128,6 @@ func getAllNodesContainingFile(fileName string) []string {
 		if row.fileName == fileName {
 			currentTime := time.Now()
 			for _, node := range nodeTable {
-				// fmt.Println("Time : ", currentTime.Sub(node.lastUpdate).Seconds())
-				// fmt.Println("Node : ", node.dataKeeperNode)
-				// fmt.Println("Row : ", row.dataKeeperNode)
 				if node.dataKeeperNode == row.dataKeeperNode && currentTime.Sub(node.lastUpdate).Seconds() <= 1.5 {
 					nodes = append(nodes, node.dataKeeperNode)
 				}
@@ -174,7 +167,6 @@ func replicateFile(fileName string) {
 
 	sourceNode := nodesContainsFile[0]
 	aliveNodes := getAliveNodes()
-	// numOfAliveNodes := len(aliveNodes)
 	for {
 		if len(nodesContainsFile) >= min(3, len(aliveNodes)) {
 			break
@@ -200,13 +192,7 @@ func replicateFile(fileName string) {
 		}
 		if err == nil {
 			fmt.Println("Replication Successfull")
-			// nodesContainsFile = append(nodesContainsFile, destinationNode)
-			// fileTable = append(fileTable, RowOfFile{fileName, destinationNode, "./" + fileName})
 			return
-			// fmt.Println("File Table:")
-			// for _, row := range fileTable {
-			// 	fmt.Println(row)
-			// }
 		}
 	}
 }
@@ -216,35 +202,19 @@ func replicationAlgorithm() {
 		time.Sleep(20 * time.Second)
 		fmt.Println("Replicating files Algo Started")
 		distinctFiles := []string{}
-		// filesPath := []string{}
 		for _, file := range fileTable {
 			if !contains(distinctFiles, file.fileName) {
 				distinctFiles = append(distinctFiles, file.fileName)
-				// filesPath = append(filesPath, file.filePath)
 			}
 		}
 		// replicate files
 		for _, file := range distinctFiles {
 			replicateFile(file)
 		}
-		// fmt.Println("File Table:")
-		// for _, row := range fileTable {
-		// 	fmt.Println(row)
-		// }
 	}
 }
 
 func main() {
-
-	// fileTable = append(fileTable, RowOfFile{"file1", "node1", "/path/to/file1"})
-	// fileTable = append(fileTable, RowOfFile{"file1", "node2", "/path/to/file1"})
-	// fileTable = append(fileTable, RowOfFile{"file1", "node6", "/path/to/file1"})
-	// fileTable = append(fileTable, RowOfFile{"file2", "node2", "/path/to/file2"})
-	// fileTable = append(fileTable, RowOfFile{"file3", "node1", "/path/to/file3"})
-
-	// nodeTable = append(nodeTable, RowOfNode{"node1", true})
-	// nodeTable = append(nodeTable, RowOfNode{"node2", true})
-	// nodeTable = append(nodeTable, RowOfNode{"node6", true})
 
 	lis, err := net.Listen("tcp", "25.23.12.54:8080")
 	if err != nil {
@@ -257,6 +227,7 @@ func main() {
 	pb.RegisterUploadServiceServer(s, &server{})
 	pb.RegisterDataKeeperSuccessServiceServer(s, &server{})
 	pb.RegisterDataKeeperConnectServiceServer(s, &server{})
+	pb.RegisterUploadSuccessfullyServiceServer(s, &server{})
 	fmt.Println("Server started")
 	if err := s.Serve(lis); err != nil {
 		fmt.Println("failed to serve:", err)

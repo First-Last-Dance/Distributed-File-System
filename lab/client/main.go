@@ -17,7 +17,9 @@ import (
 
 	"google.golang.org/grpc"
 )
+
 var folderName string
+
 func main() {
 	fmt.Println("insert folder name:")
 	fmt.Scanln(&folderName)
@@ -38,32 +40,34 @@ func main() {
 		}
 		os.Exit(0)
 	}()
-	fmt.Println("Press 1 to upload a file or 2 to download a file:")
-	var choice int
-	fmt.Scanln(&choice)
+	for {
+		fmt.Println("Press 1 to upload a file or 2 to download a file:")
+		var choice int
+		fmt.Scanln(&choice)
 
-	var masterAddress string = "25.23.12.54:8080"
-	switch choice {
-	case 1:
-		fmt.Println("Enter file name:")
-		var fileName string
-		fmt.Scanln(&fileName)
-		upload(masterAddress, fileName)
-	case 2:
-		fmt.Println("Enter file name:")
-		var fileName string
-		fmt.Scanln(&fileName)
-		download(masterAddress, fileName)
-	default:
-		fmt.Println("Invalid choice")
+		var masterAddress string = "25.23.12.54:8080"
+		switch choice {
+		case 1:
+			fmt.Println("Enter file name:")
+			var fileName string
+			fmt.Scanln(&fileName)
+			upload(masterAddress, fileName)
+		case 2:
+			fmt.Println("Enter file name:")
+			var fileName string
+			fmt.Scanln(&fileName)
+			download(masterAddress, fileName)
+		default:
+			fmt.Println("Invalid choice")
+		}
 	}
 }
 
 func getAddr(dataKeeperGRPCAddressStr string) string {
 	if strings.Count(dataKeeperGRPCAddressStr, ":") > 1 {
-    	dataKeeperGRPCAddressStr = "localhost:" + dataKeeperGRPCAddressStr[strings.LastIndex(dataKeeperGRPCAddressStr, ":") + 1:]
+		dataKeeperGRPCAddressStr = "localhost:" + dataKeeperGRPCAddressStr[strings.LastIndex(dataKeeperGRPCAddressStr, ":")+1:]
 		fmt.Println("The address contains more than one colon. assume localhost:port. all ipv6 are assumed to be localhost.")
-		fmt.Println("Data keeper gRPC address:", dataKeeperGRPCAddressStr) 
+		fmt.Println("Data keeper gRPC address:", dataKeeperGRPCAddressStr)
 	}
 	// Connect to the gRPC server
 	conn, err := grpc.Dial(dataKeeperGRPCAddressStr, grpc.WithInsecure())
@@ -76,7 +80,6 @@ func getAddr(dataKeeperGRPCAddressStr string) string {
 	// Create a gRPC client
 	client := pb.NewDataKeeperOpenConnectionServiceClient(conn)
 
-	
 	dataKeeperAddress, err_1 := client.DataKeeperOpenConnection(context.Background(), &pb.DataKeeperOpenConnectionRequest{Empty: ""})
 	if err_1 != nil {
 		fmt.Println("Error making UploadRequest:", err_1)
@@ -85,14 +88,22 @@ func getAddr(dataKeeperGRPCAddressStr string) string {
 	dataKeeperAddressStr := dataKeeperAddress.Node
 	fmt.Println("Data keeper address:", dataKeeperAddressStr)
 	if strings.Count(dataKeeperAddressStr, ":") > 1 {
-    	dataKeeperAddressStr = "localhost:" + dataKeeperAddressStr[strings.LastIndex(dataKeeperAddressStr, ":") + 1:]
+		dataKeeperAddressStr = "localhost:" + dataKeeperAddressStr[strings.LastIndex(dataKeeperAddressStr, ":")+1:]
 		fmt.Println("The address contains more than one colon. assume localhost:port. all ipv6 are assumed to be localhost.")
-		fmt.Println("Data keeper gRPC address:", dataKeeperAddressStr) 
+		fmt.Println("Data keeper gRPC address:", dataKeeperAddressStr)
 	}
 	return dataKeeperAddressStr
 }
 
 func upload(masterAddress, filePath string) {
+	// Open the file
+	file, err := os.Open(filePath)
+	if err != nil {
+		fmt.Println("Error opening file:", err)
+		return
+	}
+	defer file.Close()
+
 	// Connect to the gRPC server
 	connMaster, errMaster := grpc.Dial(masterAddress, grpc.WithInsecure())
 	if errMaster != nil {
@@ -107,13 +118,17 @@ func upload(masterAddress, filePath string) {
 
 	// Perform operations with the server
 	// Example: Make an UploadRequest
-	
+
 	dataKeeperAddress, err_1 := client.Upload(context.Background(), &pb.UploadRequest{Empty: ""})
 	if err_1 != nil {
 		fmt.Println("Error making UploadRequest:", err_1)
 		return
 	}
 	dataKeeperGRPCAddressStr := dataKeeperAddress.Node
+	if dataKeeperGRPCAddressStr == "" {
+		fmt.Println("No data keeper available.")
+		return
+	}
 	fmt.Println("Data keeper GRPC address:", dataKeeperGRPCAddressStr)
 
 	dataKeeperAddressStr := getAddr(dataKeeperGRPCAddressStr)
@@ -124,22 +139,12 @@ func upload(masterAddress, filePath string) {
 	}
 	defer conn.Close()
 
-	file, err := os.Open(filePath)
-	if err != nil {
-		fmt.Println("Error opening file:", err)
-		return
-	}
-	defer file.Close()
-
-
-
 	// Send operation (UPLOAD) => 0
 	_, err = conn.Write([]byte{0})
 	if err != nil {
 		fmt.Println("Error sending operation:", err)
 		return
 	}
-
 
 	// Get file info
 	fileInfo, err := file.Stat()
@@ -149,7 +154,7 @@ func upload(masterAddress, filePath string) {
 	}
 	fileSize := fileInfo.Size()
 	fileSizeStr := strconv.FormatInt(fileSize, 10)
-	
+
 	// Get filename
 	fileName := fileInfo.Name()
 	fileNameBytes := []byte(fileName)
@@ -205,14 +210,14 @@ func download(masterAddress, fileName string) {
 
 	// Perform operations with the server
 	// Example: Make an UploadRequest
-	
+
 	dataKeeperData, err_1 := client.Download(context.Background(), &pb.DownloadRequest{FileName: fileName})
 	if err_1 != nil {
 		fmt.Println("Error making UploadRequest:", err_1)
 		return
 	}
 	dataKeeperAddressArr := dataKeeperData.Nodes
-	if(len(dataKeeperAddressArr) == 0) {
+	if len(dataKeeperAddressArr) == 0 {
 		fmt.Println("No file found with the given name.")
 		return
 	}
@@ -282,7 +287,7 @@ func download(masterAddress, fileName string) {
 	}
 
 	// Write received content to file
-	err = os.WriteFile(folderName + "/" + fileName , fileContent, 0644)
+	err = os.WriteFile(folderName+"/"+fileName, fileContent, 0644)
 	if err != nil {
 		fmt.Println("Error writing file:", err)
 		return
