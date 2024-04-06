@@ -21,6 +21,10 @@ var folderName string
 func main() {
 	fmt.Println("insert folder name:")
 	fmt.Scanln(&folderName)
+	err := os.Mkdir(folderName, 0755)
+	if err != nil {
+		log.Fatal(err)
+	}
 	// Create a channel to receive OS signals
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, os.Interrupt, syscall.SIGTERM)
