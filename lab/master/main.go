@@ -132,7 +132,10 @@ func getAllNodesContainingFile(fileName string) []string {
 		if row.fileName == fileName {
 			currentTime := time.Now()
 			for _, node := range nodeTable {
-				if node.dataKeeperNode == row.dataKeeperNode && currentTime.Sub(node.lastUpdate).Seconds() <= 1 {
+				// fmt.Println("Time : ", currentTime.Sub(node.lastUpdate).Seconds())
+				// fmt.Println("Node : ", node.dataKeeperNode)
+				// fmt.Println("Row : ", row.dataKeeperNode)
+				if node.dataKeeperNode == row.dataKeeperNode && currentTime.Sub(node.lastUpdate).Seconds() <= 1.5 {
 					nodes = append(nodes, node.dataKeeperNode)
 				}
 			}
@@ -165,6 +168,10 @@ func replicateFileFromSourceToDestination(fileName string, sourceNode string, de
 func replicateFile(fileName string) {
 	nodesContainsFile := getAllNodesContainingFile(fileName)
 
+	if len(nodesContainsFile) == 0 {
+		return
+	}
+
 	sourceNode := nodesContainsFile[0]
 	aliveNodes := getAliveNodes()
 	// numOfAliveNodes := len(aliveNodes)
@@ -192,19 +199,21 @@ func replicateFile(fileName string) {
 			}
 		}
 		if err == nil {
-			nodesContainsFile = append(nodesContainsFile, destinationNode)
-			fileTable = append(fileTable, RowOfFile{fileName, destinationNode, "./" + fileName})
-			fmt.Println("File Table:")
-			for _, row := range fileTable {
-				fmt.Println(row)
-			}
+			fmt.Println("Replication Successfull")
+			// nodesContainsFile = append(nodesContainsFile, destinationNode)
+			// fileTable = append(fileTable, RowOfFile{fileName, destinationNode, "./" + fileName})
+			return
+			// fmt.Println("File Table:")
+			// for _, row := range fileTable {
+			// 	fmt.Println(row)
+			// }
 		}
 	}
 }
 
 func replicationAlgorithm() {
 	for {
-		time.Sleep(10 * time.Second)
+		time.Sleep(20 * time.Second)
 		fmt.Println("Replicating files Algo Started")
 		distinctFiles := []string{}
 		// filesPath := []string{}
@@ -243,7 +252,7 @@ func main() {
 		return
 	}
 	s := grpc.NewServer()
-	// go replicationAlgorithm()
+	go replicationAlgorithm()
 	pb.RegisterDownloadServiceServer(s, &server{})
 	pb.RegisterUploadServiceServer(s, &server{})
 	pb.RegisterDataKeeperSuccessServiceServer(s, &server{})
