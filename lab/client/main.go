@@ -5,17 +5,35 @@ import (
 	"fmt"
 	"io"
 	pb "lab_1/gRPC"
+	"log"
 	"math/rand"
 	"net"
 	"os"
+	"os/signal"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"google.golang.org/grpc"
 )
-
+var folderName string
 func main() {
+	fmt.Println("insert folder name:")
+	fmt.Scanln(&folderName)
+	// Create a channel to receive OS signals
+	sig := make(chan os.Signal, 1)
+	signal.Notify(sig, os.Interrupt, syscall.SIGTERM)
+
+	// Start a goroutine that will delete the gRPCPort directory when a signal is received
+	go func() {
+		<-sig
+		err := os.RemoveAll(folderName)
+		if err != nil {
+			log.Fatal(err)
+		}
+		os.Exit(0)
+	}()
 	fmt.Println("Press 1 to upload a file or 2 to download a file:")
 	var choice int
 	fmt.Scanln(&choice)
@@ -190,7 +208,10 @@ func download(masterAddress, fileName string) {
 		return
 	}
 	dataKeeperAddressArr := dataKeeperData.Nodes
-
+	if(len(dataKeeperAddressArr) == 0) {
+		fmt.Println("No file found with the given name.")
+		return
+	}
 	// Seed the random number generator
 	rand.Seed(time.Now().UnixNano())
 
@@ -200,13 +221,6 @@ func download(masterAddress, fileName string) {
 	fmt.Println("Data keeper address:", dataKeeperGRPCAddressStr)
 
 	dataKeeperAddressStr := getAddr(dataKeeperGRPCAddressStr)
-
-
-	if strings.Count(dataKeeperAddressStr, ":") > 1 {
-    	dataKeeperAddressStr = "localhost:" + dataKeeperAddressStr[strings.LastIndex(dataKeeperAddressStr, ":") + 1:]
-		fmt.Println("The address contains more than one colon. assume localhost:port. all ipv6 are assumed to be localhost.")
-		fmt.Println("Data keeper address:", dataKeeperAddressStr) 
-	}
 
 	conn, err := net.Dial("tcp", dataKeeperAddressStr)
 	if err != nil {
@@ -264,7 +278,7 @@ func download(masterAddress, fileName string) {
 	}
 
 	// Write received content to file
-	err = os.WriteFile(fileName , fileContent, 0644)
+	err = os.WriteFile(folderName + "/" + fileName , fileContent, 0644)
 	if err != nil {
 		fmt.Println("Error writing file:", err)
 		return

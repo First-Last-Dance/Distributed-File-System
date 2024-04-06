@@ -5,10 +5,13 @@ import (
 	"fmt"
 	"io"
 	pb "lab_1/gRPC"
+	"log"
 	"net"
 	"os"
+	"os/signal"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"google.golang.org/grpc"
@@ -93,7 +96,7 @@ func replicateFile(filePath string, node string) {
 		fmt.Println("Data keeper address:", dataKeeperAddressStr) 
 	}
 
-	file, err := os.Open(filePath)
+	file, err := os.Open(gRPCPort + "/" + filePath)
 	if err != nil {
 		fmt.Println("Error opening file:", err)
 		return
@@ -160,17 +163,39 @@ func replicateFile(filePath string, node string) {
 		return
 	}
 
-	fmt.Println("File uploaded successfully.")
+	fmt.Println("File replicated successfully.")
 }
+
+
 
 var masterAddress string = "25.23.12.54:8080"
 var dataKeeperIP string = "25.49.63.207"
 var gRPCPort string
 
+
 func main() {
 	gRPCPort = getPort()
 
-	listener, err := net.Listen("tcp", dataKeeperIP + ":" +gRPCPort)
+	err := os.Mkdir(gRPCPort, 0755)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Create a channel to receive OS signals
+	sig := make(chan os.Signal, 1)
+	signal.Notify(sig, os.Interrupt, syscall.SIGTERM)
+
+	// Start a goroutine that will delete the gRPCPort directory when a signal is received
+	go func() {
+		<-sig
+		err := os.RemoveAll(gRPCPort)
+		if err != nil {
+			log.Fatal(err)
+		}
+		os.Exit(0)
+	}()
+
+	listener, err := net.Listen("tcp", dataKeeperIP+":"+gRPCPort)
 	if err != nil {
 		fmt.Println("Error starting server:", err)
 		return
@@ -311,7 +336,7 @@ func download(conn net.Conn, port string, masterAddress string) {
 	}
 
 	// Write received content to file
-	err = os.WriteFile(fileName, fileContent, 0644)
+	err = os.WriteFile(gRPCPort + "/" +fileName, fileContent, 0644)
 	if err != nil {
 		fmt.Println("Error writing file:", err)
 		return
@@ -357,7 +382,7 @@ func upload(conn net.Conn) {
 	}
 	filePath := string(filePathBytes)
 	// Open the file for reading
-	file, err := os.Open(filePath)
+	file, err := os.Open(gRPCPort + "/"+filePath)
 	if err != nil {
 		fmt.Println("Error opening file:", err)
 		return
