@@ -191,6 +191,9 @@ func upload(masterAddress, filePath string) {
 		return
 	}
 
+	// Delay for 0.5 seconds
+	time.Sleep(500 * time.Millisecond)
+
 	client_1 := pb.NewUploadSuccessfullyServiceClient(connMaster)
 	res, err := client_1.UploadSuccessfully(context.Background(), &pb.UploadSuccessfullyRequest{FileName: fileName})
 	if err != nil {
@@ -198,13 +201,11 @@ func upload(masterAddress, filePath string) {
 		return
 	}
 
-	// Delay for 0.5 seconds
-	time.Sleep(500 * time.Millisecond)
-
-	if(!res.IsSuccess){
+	if !res.IsSuccess {
 		fmt.Println("File upload failed.")
-	}else{
-	fmt.Println("File uploaded successfully.")}
+	} else {
+		fmt.Println("File uploaded successfully.")
+	}
 }
 
 func download(masterAddress, fileName string) {
