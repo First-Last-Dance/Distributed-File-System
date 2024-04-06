@@ -58,7 +58,6 @@ func getPort() string {
 		return ""
 	}
 	var port int = listener.Addr().(*net.TCPAddr).Port
-	fmt.Println("Free port:", port)
 	listener.Close()
 
 	return strconv.Itoa(port)
@@ -209,7 +208,7 @@ func main() {
 	// Start the server communication thread
 	go serverCommunication(gRPCPort, masterAddress)
 	
-	fmt.Println("Node is listening on port " + dataKeeperIP +":" + gRPCPort + "...") 
+	fmt.Println("Data Keeper gRPC is listening on " + dataKeeperIP +":" + gRPCPort + "...") 
 	if err := s.Serve(listener); err != nil {
 		fmt.Println("failed to serve:", err)
 	}
@@ -260,21 +259,21 @@ func clientCommunication(ip string, port string, gRPCPort string, masterAddress 
 		fmt.Println("Error starting server:", err)
 		return
 	}
+	fmt.Println("Data Keeper opened connection on " + dataKeeperIP + ":" + port + "...") 
+	defer fmt.Println("Data Keeper closed connection on " + dataKeeperIP + ":" + port + "...") 
 	defer listener.Close()
-	fmt.Println("Node is listening on port " + dataKeeperIP + ":" + port + "...") 
+
 	// Accept client connection
 	conn, err := listener.Accept()
 	if err != nil {
 		fmt.Println("Error accepting connection:", err)
 	}
+	defer conn.Close()
 
-	// Handle each client connection in a separate goroutine
-	go handleClient(conn, gRPCPort, masterAddress)
+	handleClient(conn, gRPCPort, masterAddress)
 }
 
 func handleClient(conn net.Conn, port string, masterAddress string) {
-	defer conn.Close()
-
 	// Read the first byte to determine operation (UPLOAD or DOWNLOAD)
 	opBuffer := make([]byte, 1)
 	_, err := conn.Read(opBuffer)
@@ -353,9 +352,9 @@ func download(conn net.Conn, port string, masterAddress string) {
 	// Create a gRPC client
 	clientMaster := pb.NewDataKeeperSuccessServiceClient(connMaster)
 
-	clientMaster.DataKeeperSuccess(context.Background(), &pb.DataKeeperSuccessRequest{FileName: fileName, DataKeeperNode: port, FilePath: "./" + fileName, IsReplication: false})
+	clientMaster.DataKeeperSuccess(context.Background(), &pb.DataKeeperSuccessRequest{FileName: fileName, DataKeeperNode: port, FilePath: "./" + fileName})
 
-	fmt.Println("File uploaded successfully.")
+	fmt.Println(fileName + "uploaded successfully.")
 
 }
 

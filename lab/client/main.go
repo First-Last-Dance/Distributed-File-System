@@ -191,7 +191,16 @@ func upload(masterAddress, filePath string) {
 		return
 	}
 
-	fmt.Println("File uploaded successfully.")
+	client_1 := pb.NewUploadSuccessfullyServiceClient(connMaster)
+	res, err := client_1.UploadSuccessfully(context.Background(), &pb.UploadSuccessfullyRequest{FileName: fileName})
+	if err != nil {
+		fmt.Println("Error making UploadSuccessfully request:", err)
+		return
+	}
+	if(!res.IsSuccess){
+		fmt.Println("File upload failed.")
+	}else{
+	fmt.Println("File uploaded successfully.")}
 }
 
 func download(masterAddress, fileName string) {
